@@ -1,0 +1,136 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+:root {
+    /* Core Foundation - True Black & Deep Grays */
+    --bg-primary: #000000;
+    --bg-panel: #0A0A0A;
+    --bg-elevated: #111111;
+    --bg-hover: #1A1A1A;
+
+    /* Borders / Dividers */
+    --border-light: #1E1E1E;
+    --border-strong: #2C2C2C;
+    --border-active: #333333;
+
+    /* Typography */
+    --text-primary: #FAFAFA;
+    --text-secondary: #A1A1AA;
+    --text-muted: #52525B;
+
+    /* Brand Accents */
+    --accent-blue: #3B82F6;
+    --accent-purple: #8B5CF6;
+    --accent-teal: #14B8A6;
+
+    /* Status Colors */
+    --status-success: #10B981;
+    --status-warning: #F59E0B;
+    --status-error: #EF4444;
+
+    /* Geometry & Spacing */
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --header-height: 48px;
+    --sidebar-width: 56px;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    height: 100vh;
+    overflow: hidden;
+}
+
+#root {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border-light);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--border-strong);
+}
+
+.app-container {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.main-content {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* React Split Gutter Styles - Minimalist & Sleek */
+.split {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    background-color: var(--bg-primary);
+}
+
+.split-horizontal {
+    flex-direction: row;
+}
+
+.split-vertical {
+    flex-direction: column;
+}
+
+.gutter {
+    background-color: rgba(255, 255, 255, 0.03);
+    position: relative;
+    z-index: 10;
+    flex-shrink: 0;
+    transition: background-color 0.2s ease;
+}
+
+.split-horizontal>.gutter {
+    width: 2px !important;
+    cursor: col-resize;
+}
+
+.split-vertical>.gutter {
+    height: 2px !important;
+    cursor: row-resize;
+}
+
+.gutter:hover,
+.gutter:active {
+    background-color: var(--accent-blue) !important;
+}
+
+.gutter.gutter-vertical {
+    background-image: none;
+}
+
+.gutter.gutter-horizontal {
+    background-image: none;
+}

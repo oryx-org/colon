@@ -1,0 +1,164 @@
+/* ── Menu Bar ──────────────────────────────────────── */
+.menu-bar {
+    height: 38px;
+    background-color: var(--bg-panel);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border-strong);
+    user-select: none;
+    font-size: 13px;
+    position: relative;
+    z-index: 1000;
+}
+
+.drag-region {
+    -webkit-app-region: drag;
+}
+
+.no-drag {
+    -webkit-app-region: no-drag;
+}
+
+/* ── Left ── */
+.menu-left {
+    display: flex;
+    align-items: center;
+    height: 100%;
+}
+
+.menu-logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 100%;
+    padding-left: 8px;
+}
+
+.colon-logo {
+    color: #3b82f6;
+    font-size: 18px;
+    font-weight: bold;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: -1px;
+    filter: drop-shadow(0 0 4px rgba(59, 130, 246, 0.4));
+}
+
+.menu-items {
+    display: flex;
+    align-items: center;
+    height: 100%;
+}
+
+.menu-item {
+    color: var(--text-secondary);
+    padding: 0 10px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    position: relative;
+    transition: color 0.1s, background-color 0.1s;
+    font-size: 13px;
+}
+
+.menu-item:hover,
+.menu-item.open {
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+/* ── Dropdown ── */
+.menu-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    min-width: 240px;
+    background-color: var(--bg-elevated);
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    padding: 4px 0;
+    z-index: 9999;
+    pointer-events: all;
+}
+
+.menu-dropdown-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 16px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 13px;
+    transition: background-color 0.08s, color 0.08s;
+    gap: 32px;
+    white-space: nowrap;
+}
+
+.menu-dropdown-item:hover {
+    background-color: var(--accent-blue);
+    color: #fff;
+}
+
+.menu-shortcut {
+    font-size: 11px;
+    opacity: 0.55;
+    flex-shrink: 0;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.menu-dropdown-item:hover .menu-shortcut {
+    opacity: 0.8;
+}
+
+.menu-separator {
+    height: 1px;
+    background-color: var(--border-strong);
+    margin: 4px 0;
+}
+
+/* ── Center ── */
+.menu-center {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.window-title {
+    color: var(--text-muted);
+    font-size: 12px;
+    letter-spacing: 0.2px;
+}
+
+/* ── Right (window controls) ── */
+.menu-right {
+    display: flex;
+    height: 100%;
+}
+
+.window-control-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 100%;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.1s, color 0.1s;
+}
+
+.window-control-btn:hover {
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.window-control-btn.close:hover {
+    background-color: #e81123;
+    color: white;
+}

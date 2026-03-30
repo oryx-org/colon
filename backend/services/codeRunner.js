@@ -1,0 +1,171 @@
+/**
+ * Code Runner — Executes code files using detected local runtimes.
+ * Supports: Python, Node.js, C, C++, Java, Go, Rust, TypeScript
+ */
+
+const { spawn, execFile } = require('child_process');
+const path = require('path');
+const fs = require('fs');
+const os = require('os');
+
+/**
+ * Build the run command for a given language  
+ * Returns { cmd, args, needsCompile, compileCmd, compileArgs, outputBinary }
+ */
+function getRunConfig(filePath, runtimeId, runtimeCommand) {
+    const dir = path.dirname(filePath);
+    const baseName = path.basename(filePath, path.extname(filePath));
+    const outDir = path.join(os.tmpdir(), 'colon-runner');
+
+    // Ensure temp dir exists
+    if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
+
+    const configs = {
+        python: {
+            cmd: runtimeCommand || 'python3',
+            args: [filePath],
+            needsCompile: false
+        },
+        node: {
+            cmd: runtimeCommand || 'node',
+            args: [filePath],
+            needsCompile: false
+        },
+        typescript: {
+            cmd: runtimeCommand || 'ts-node',
+            args: [filePath],
+            needsCompile: false
+        },
+        gcc: {
+            needsCompile: true,
+            compileCmd: runtimeCommand || 'gcc',
+            compileArgs: [filePath, '-o', path.join(outDir, baseName), '-lm'],
+            cmd: path.join(outDir, baseName),
+            args: []
+        },
+        gpp: {
+            needsCompile: true,
+            compileCmd: runtimeCommand || 'g++',
+            compileArgs: [filePath, '-o', path.join(outDir, baseName), '-lstdc++'],
+            cmd: path.join(outDir, baseName),
+            args: []
+        },
+        java: {
+            needsCompile: true,
+            compileCmd: 'javac',
+            compileArgs: [filePath],
+            cmd: 'java',
+            args: ['-cp', dir, baseName]
+        },
+        go: {
+            cmd: runtimeCommand || 'go',
+            args: ['run', filePath],
+            needsCompile: false
+        },
+        rust: {
+            needsCompile: true,
+            compileCmd: runtimeCommand || 'rustc',
+            compileArgs: [filePath, '-o', path.join(outDir, baseName)],
+            cmd: path.join(outDir, baseName),
+            args: []
+        }
+    };
+
+    return configs[runtimeId] || null;
+}
+
+/**
+ * Compile code (for C, C++, Java, Rust)
+ * Returns a promise that resolves with { success, error }
+ */
+function compileCode(compileCmd, compileArgs, cwd) {
+    return new Promise((resolve) => {
+        const proc = spawn(compileCmd, compileArgs, {
+            cwd,
+            env: process.env,
+            timeout: 30000
+        });
+
+        let stderr = '';
+        proc.stderr.on('data', (d) => { stderr += d.toString(); });
+
+        proc.on('close', (code) => {
+            if (code === 0) {
+                resolve({ success: true, error: null });
+            } else {
+                resolve({ success: false, error: stderr || `Compilation failed with exit code ${code}` });
+            }
+        });
+
+        proc.on('error', (err) => {
+            resolve({ success: false, error: err.message });
+        });
+    });
+}
+
+/**
+ * Run a code file.
+ * Sends output via the callback: onOutput(type, data)
+ *   type = 'stdout' | 'stderr' | 'exit' | 'error' | 'compile-error'
+ * Returns a kill function to terminate the process.
+ */
+function runCode(filePath, runtimeId, runtimeCommand, onOutput) {
+    const config = getRunConfig(filePath, runtimeId, runtimeCommand);
+
+    if (!config) {
+        onOutput('error', `No run configuration for runtime: ${runtimeId}`);
+        return () => { };
+    }
+
+    const cwd = path.dirname(filePath);
+
+    const execute = () => {
+        const proc = spawn(config.cmd, config.args, {
+            cwd,
+            env: process.env,
+            timeout: 30000 // 30 second timeout
+        });
+
+        proc.stdout.on('data', (data) => {
+            onOutput('stdout', data.toString());
+        });
+
+        proc.stderr.on('data', (data) => {
+            onOutput('stderr', data.toString());
+        });
+
+        proc.on('close', (code) => {
+            onOutput('exit', `\n[Process exited with code ${code}]\n`);
+        });
+
+        proc.on('error', (err) => {
+            onOutput('error', `Failed to start process: ${err.message}`);
+        });
+
+        return () => {
+            try { proc.kill('SIGTERM'); } catch { }
+        };
+    };
+
+    // If compilation is needed, compile first
+    if (config.needsCompile) {
+        onOutput('stdout', `[Compiling ${path.basename(filePath)}...]\n`);
+
+        compileCode(config.compileCmd, config.compileArgs, cwd).then((result) => {
+            if (!result.success) {
+                onOutput('compile-error', result.error);
+                onOutput('exit', '\n[Compilation failed]\n');
+            } else {
+                onOutput('stdout', '[Compilation successful. Running...]\n\n');
+                execute();
+            }
+        });
+
+        // Return a no-op kill for now (the actual process kill happens inside execute)
+        return () => { };
+    } else {
+        return execute();
+    }
+}
+
+module.exports = { runCode, getRunConfig };

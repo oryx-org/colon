@@ -1,0 +1,297 @@
+.explorer-panel {
+    background-color: var(--bg-panel);
+    border-right: 1px solid var(--border-strong);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    position: relative;
+    user-select: none;
+}
+
+/* ── Header ── */
+.explorer-header {
+    height: 35px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 6px 0 16px;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
+
+.explorer-title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.explorer-actions {
+    display: flex;
+    gap: 1px;
+}
+
+.explorer-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.1s, color 0.1s;
+}
+
+.explorer-btn:hover {
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+/* ── Scrollable content ── */
+.explorer-content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.explorer-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.explorer-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.explorer-content::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 3px;
+}
+
+.explorer-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* ── Tree header ── */
+.tree-header {
+    padding: 8px 16px 4px;
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    cursor: pointer;
+}
+
+.tree-header:hover {
+    color: var(--text-secondary);
+}
+
+/* ── File tree item ── */
+.file-tree-item {
+    display: flex;
+    align-items: center;
+    height: 24px;
+    padding-right: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-secondary);
+    position: relative;
+    border: 1px solid transparent;
+    transition: background-color 0.08s;
+}
+
+.file-tree-item:hover {
+    background-color: rgba(255, 255, 255, 0.04);
+}
+
+.file-tree-item.selected {
+    background-color: rgba(59, 130, 246, 0.1);
+    color: var(--text-primary);
+}
+
+.file-tree-item.inline-input-row {
+    background-color: var(--bg-primary);
+    height: 26px;
+}
+
+/* ── Icon containers ── */
+.file-icon-container {
+    display: flex;
+    align-items: center;
+    margin-right: 4px;
+    flex-shrink: 0;
+}
+
+.collapse-icon {
+    font-size: 14px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.item-icon {
+    font-size: 15px;
+    flex-shrink: 0;
+}
+
+.item-icon.folder {
+    color: #C09553;
+}
+
+.item-icon.file {
+    color: #9D9D9D;
+}
+
+/* ── File name ── */
+.file-name {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+/* ── Inline edit input ── */
+.tree-edit-input {
+    flex: 1;
+    background: var(--bg-elevated);
+    border: 1px solid var(--accent-blue);
+    border-radius: 2px;
+    color: var(--text-primary);
+    font-size: 12px;
+    padding: 1px 4px;
+    outline: none;
+    height: 20px;
+    min-width: 0;
+    font-family: inherit;
+}
+
+/* ── Hover action icons ── */
+.item-actions {
+    display: none;
+    gap: 2px;
+    margin-left: auto;
+    padding-left: 4px;
+    flex-shrink: 0;
+}
+
+.file-tree-item:hover .item-actions {
+    display: flex;
+}
+
+.action-icon {
+    font-size: 13px;
+    color: var(--text-muted);
+    padding: 2px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background-color 0.1s, color 0.1s;
+}
+
+.action-icon:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+    color: var(--text-primary);
+}
+
+.action-icon.delete:hover {
+    background-color: rgba(239, 68, 68, 0.2);
+    color: var(--status-error);
+}
+
+/* ── Empty state ── */
+.empty-state {
+    padding: 32px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 16px;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.primary-btn {
+    background-color: var(--accent-blue);
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    transition: background-color 0.1s;
+}
+
+.primary-btn:hover {
+    background-color: #2563EB;
+}
+
+/* ── Context menu ── */
+.context-menu {
+    position: fixed;
+    z-index: 1000;
+    background-color: #1E1E1E;
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 4px 0;
+    min-width: 180px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    font-size: 12px;
+    animation: contextFadeIn 0.1s ease;
+}
+
+@keyframes contextFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.context-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 16px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: background-color 0.08s;
+}
+
+.context-item:hover {
+    background-color: var(--accent-blue);
+    color: white;
+}
+
+.context-item.danger:hover {
+    background-color: var(--status-error);
+    color: white;
+}
+
+.context-separator {
+    height: 1px;
+    background-color: #333;
+    margin: 4px 8px;
+}
+
+/* ── Children indentation ── */
+.file-children {
+    position: relative;
+}
+
+.file-children::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: calc(var(--indent, 28px));
+    width: 1px;
+    background-color: rgba(255, 255, 255, 0.04);
+}

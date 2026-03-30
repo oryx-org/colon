@@ -1,0 +1,122 @@
+const WebSocket = require('ws');
+const { spawn, execFileSync } = require('child_process');
+const path = require('path');
+
+let wss = null;
+
+/** Find a binary on PATH, returns null if not found */
+function findBin(name) {
+    const finder = process.platform === 'win32' ? 'where' : 'which';
+    try {
+        return execFileSync(finder, [name], { timeout: 3000 }).toString().trim().split('\n')[0];
+    } catch {
+        return null;
+    }
+}
+
+function startLspServer() {
+    // Start WebSocket server on port 3001
+    wss = new WebSocket.Server({ port: 3001 });
+
+    wss.on('error', (err) => {
+        if (err.code === 'EADDRINUSE') {
+            console.error('[lspServer.js] Port 3001 is already in use. LSP features will be unavailable.');
+        } else {
+            console.error('[lspServer.js] WebSocket server error:', err.message);
+        }
+    });
+
+    console.log('[lspServer.js] LSP WebSocket Server started on ws://localhost:3001');
+
+    wss.on('connection', (ws, req) => {
+        // The URL will tell us what language server to start, e.g. /python
+        const url = req.url || '/';
+        const lang = url.substring(1); // removes the leading slash
+
+        console.log(`[lspServer.js] New connection for language: ${lang}`);
+
+        let lsProcess = null;
+
+        if (lang === 'python') {
+            const pyrightBin = path.join(__dirname, '..', 'node_modules', '.bin', 'pyright-langserver');
+            lsProcess = spawn(pyrightBin, ['--stdio']);
+            console.log('[lspServer.js] Spawned pyright-langserver');
+
+        } else if (lang === 'javascript' || lang === 'typescript' ||
+                   lang === 'javascriptreact' || lang === 'typescriptreact') {
+            const tslsBin = path.join(__dirname, '..', 'node_modules', '.bin', 'typescript-language-server');
+            lsProcess = spawn(tslsBin, ['--stdio'], {
+                env: { ...process.env, TSS_LOG: '' }
+            });
+            console.log('[lspServer.js] Spawned typescript-language-server');
+
+        } else if (lang === 'go') {
+            const gopls = findBin('gopls');
+            if (!gopls) {
+                console.warn('[lspServer.js] gopls not found. Install with: go install golang.org/x/tools/gopls@latest');
+                ws.close();
+                return;
+            }
+            lsProcess = spawn(gopls, ['serve']);
+            console.log('[lspServer.js] Spawned gopls');
+
+        } else if (lang === 'rust') {
+            const ra = findBin('rust-analyzer');
+            if (!ra) {
+                console.warn('[lspServer.js] rust-analyzer not found. Install from: https://rust-analyzer.github.io');
+                ws.close();
+                return;
+            }
+            lsProcess = spawn(ra, []);
+            console.log('[lspServer.js] Spawned rust-analyzer');
+
+        } else {
+            console.log(`[lspServer.js] No LSP server configured for: ${lang}`);
+            ws.close();
+            return;
+        }
+
+        // Bridge: Language Server stdout -> WebSocket
+        lsProcess.stdout.on('data', (data) => {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(data);
+            }
+        });
+
+        // Bridge: WebSocket -> Language Server stdin
+        ws.on('message', (msg) => {
+            if (lsProcess && !lsProcess.killed) {
+                // Buffer because the message might be text or binary, but lsProcess needs buffer
+                lsProcess.stdin.write(msg);
+            }
+        });
+
+        // Handle errors
+        lsProcess.stderr.on('data', (data) => {
+            console.error(`[lspServer.js] ${lang} stderr:`, data.toString());
+        });
+
+        ws.on('close', () => {
+            console.log(`[lspServer.js] Connection closed for ${lang}, killing process.`);
+            if (lsProcess && !lsProcess.killed) {
+                lsProcess.kill();
+            }
+        });
+
+        lsProcess.on('exit', (code) => {
+            console.log(`[lspServer.js] ${lang} server exited with code ${code}`);
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.close();
+            }
+        });
+    });
+}
+
+function stopLspServer() {
+    if (wss) {
+        wss.close();
+        wss = null;
+    }
+}
+
+module.exports = { startLspServer, stopLspServer };

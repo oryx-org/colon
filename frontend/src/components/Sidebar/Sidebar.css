@@ -1,0 +1,86 @@
+.sidebar {
+    width: var(--sidebar-width);
+    min-width: var(--sidebar-width);
+    background-color: var(--bg-primary);
+    /* The Figma appears to use the pitch black background */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-right: 1px solid var(--border-strong);
+    height: 100%;
+    user-select: none;
+}
+
+.sidebar-top,
+.sidebar-bottom {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+}
+
+.sidebar-btn {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background-color 0.2s;
+    position: relative;
+    opacity: 0.6;
+}
+
+/* For active or hover states, we bring opacity to 1 and add subtle background */
+.sidebar-btn:hover {
+    opacity: 1;
+    background-color: var(--bg-hover);
+}
+
+.sidebar-btn.active {
+    opacity: 1;
+}
+
+/* Left accent bar for active tab (optional but common for IDEs) */
+.sidebar-btn.active::before {
+    content: '';
+    position: absolute;
+    left: -4px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 2px;
+    height: 24px;
+    background-color: var(--accent-blue);
+    border-radius: 2px;
+}
+
+/* Image styling */
+.sidebar-icon-img {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+}
+
+.category-img {
+    width: 22px;
+    height: 22px;
+}
+
+/* SVG styling for Lucide icons */
+.sidebar-icon-svg {
+    width: 24px;
+    height: 24px;
+    color: var(--text-secondary);
+    stroke-width: 1.5px;
+}
+
+.sidebar-btn:hover .sidebar-icon-svg,
+.sidebar-btn.active .sidebar-icon-svg {
+    color: var(--text-primary);
+}
