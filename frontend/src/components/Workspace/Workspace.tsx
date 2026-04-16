@@ -22,6 +22,8 @@ interface WorkspaceProps {
     onStopRun?: () => void;
     isRunning?: boolean;
     onGenerateAnimation?: (filePath: string, code: string, language: string, blockInfo: any) => void;
+    onCursorChange?: (line: number, column: number) => void;
+    settings?: any;
 }
 
 /** Extensions that can be "run" */
@@ -36,7 +38,7 @@ function isRunnable(fileName: string): boolean {
     return RUNNABLE_EXTENSIONS.has(ext.toLowerCase());
 }
 
-function Workspace({ openFiles, activeFilePath, setActiveFilePath, onCloseFile, onFileChange, onRunFile, onStopRun, isRunning, onGenerateAnimation }: WorkspaceProps) {
+function Workspace({ openFiles, activeFilePath, setActiveFilePath, onCloseFile, onFileChange, onRunFile, onStopRun, isRunning, onGenerateAnimation, onCursorChange, settings }: WorkspaceProps) {
     const activeFile = openFiles.find(f => f.path === activeFilePath);
 
     // Refs for Monaco to control markers (squigglies)
@@ -221,10 +223,49 @@ function Workspace({ openFiles, activeFilePath, setActiveFilePath, onCloseFile, 
         console.log(`[Workspace] Initialized LSP connection for ${lang}`);
     }, [activeFile?.language]);
 
+    // Editor Global Action Listener (from MenuBar)
+    useEffect(() => {
+        const handler = (e: Event) => {
+            const act = (e as CustomEvent).detail;
+            const ed = editorRef.current;
+            if (!ed) return;
+
+            ed.focus();
+
+            switch (act) {
+                // Formatting & Basic Editing
+                case 'undo': ed.trigger('keyboard', 'undo', null); break;
+                case 'redo': ed.trigger('keyboard', 'redo', null); break;
+                case 'cut': document.execCommand('cut'); break;
+                case 'copy': document.execCommand('copy'); break;
+                case 'paste': document.execCommand('paste'); break;
+                case 'selectAll': ed.setSelection(ed.getModel().getFullModelRange()); break;
+
+                // Advanced Selection
+                case 'expandSelection': ed.trigger('keyboard', 'editor.action.smartSelect.expand', null); break;
+                case 'addCursorAbove': ed.trigger('keyboard', 'editor.action.insertCursorAbove', null); break;
+                case 'addCursorBelow': ed.trigger('keyboard', 'editor.action.insertCursorBelow', null); break;
+
+                // Navigation
+                case 'goToLine': ed.trigger('keyboard', 'editor.action.gotoLine', null); break;
+                case 'navigateBack': ed.trigger('keyboard', 'workbench.action.navigateBack', null); break;
+                case 'navigateForward': ed.trigger('keyboard', 'workbench.action.navigateForward', null); break;
+            }
+        };
+
+        window.addEventListener('editor-action', handler);
+        return () => window.removeEventListener('editor-action', handler);
+    }, []);
+
     const handleEditorDidMount = (editor: any, monaco: any) => {
         editorRef.current = editor;
         monacoRef.current = monaco;
         setEditorReady(c => c + 1);
+
+        // Report cursor position to parent for status bar
+        editor.onDidChangeCursorPosition((e: any) => {
+            onCursorChange?.(e.position.lineNumber, e.position.column);
+        });
 
         // Initialize features only once per editor mount
         setupHtmlAutoClose(editor, monaco);
@@ -304,7 +345,7 @@ function Workspace({ openFiles, activeFilePath, setActiveFilePath, onCloseFile, 
                     path={activeFile.path}
                     height="100%"
                     language={activeFile.language}
-                    theme="custom-black"
+                    theme="vs-dark"
                     value={activeFile.content}
                     onChange={handleEditorChange}
                     beforeMount={handleEditorWillMount}
@@ -312,7 +353,7 @@ function Workspace({ openFiles, activeFilePath, setActiveFilePath, onCloseFile, 
                     options={{
                         minimap: { enabled: false },
                         glyphMargin: true,
-                        fontSize: 14,
+                        fontSize: settings?.fontSize || 14,
                         fontFamily: "'JetBrains Mono', monospace",
                         lineHeight: 22,
                         padding: { top: 16 },
@@ -324,8 +365,8 @@ function Workspace({ openFiles, activeFilePath, setActiveFilePath, onCloseFile, 
                         readOnly: false,
                         automaticLayout: true,
                         contextmenu: true,
-                        wordWrap: 'off',
-                        tabSize: 4,
+                        wordWrap: settings?.wordWrap || 'off',
+                        tabSize: settings?.tabSize || 4,
 
                         // Advanced IDE Features
                         bracketPairColorization: { enabled: true, independentColorPoolPerBracketType: true },

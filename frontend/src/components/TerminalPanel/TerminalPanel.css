@@ -359,9 +359,9 @@
     height: 100%;
     min-height: 0;
     min-width: 0;
-    background-color: #000;
+    background-color: #0a0a0a;
     overflow: hidden;
-    padding: 4px 4px 0 4px;
+    padding: 6px 0 0 8px;
 }
 
 .xterm {
@@ -370,8 +370,26 @@
 }
 
 .xterm .xterm-viewport {
-    background-color: #000000 !important;
+    background-color: #0a0a0a !important;
     overflow-y: auto !important;
+}
+
+/* Hide the ugly default scrollbar, use a thin one */
+.xterm .xterm-viewport::-webkit-scrollbar {
+    width: 8px;
+}
+
+.xterm .xterm-viewport::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.xterm .xterm-viewport::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 4px;
+}
+
+.xterm .xterm-viewport::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.25);
 }
 
 .xterm .xterm-screen {
@@ -384,4 +402,9 @@
 
 .xterm .xterm-rows {
     min-height: 100%;
+}
+
+/* Selection styling */
+.xterm .xterm-selection div {
+    background: rgba(38, 79, 120, 0.5) !important;
 }

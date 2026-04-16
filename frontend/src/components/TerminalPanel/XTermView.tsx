@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
+import { WebLinksAddon } from '@xterm/addon-web-links';
 import { xtermRegistry } from './TerminalPanel';
 import '@xterm/xterm/css/xterm.css';
 
@@ -16,38 +17,49 @@ function XTermView({ terminalId, isVisible, onFocus }: XTermViewProps) {
     const fitAddonRef = useRef<FitAddon | null>(null);
     const fitTimerRef = useRef<number | null>(null);
     const lastResizeRef = useRef<{ cols: number; rows: number } | null>(null);
+    const mountedRef = useRef(false);
 
-    /** Debounced fit — prevents rapid layout thrashing */
     const debouncedFit = () => {
         if (fitTimerRef.current) cancelAnimationFrame(fitTimerRef.current);
         fitTimerRef.current = requestAnimationFrame(() => {
             try {
                 const el = containerRef.current;
-                // During panel drag/show-hide transitions, zero/tiny dimensions can occur briefly.
-                // Fitting in that state can produce invalid row/col calculations.
                 if (!el || el.clientWidth < 40 || el.clientHeight < 30) return;
                 if (fitAddonRef.current && xtermRef.current?.element) {
                     fitAddonRef.current.fit();
                 }
             } catch {
-                // ignore fit errors during rapid resizing
+                /* ignore */
             }
         });
     };
 
     useEffect(() => {
+        // Guard against React StrictMode double-mount.
+        // On the first mount we set mountedRef=true and create the terminal.
+        // StrictMode unmount sets it false, then the second mount sees it's false
+        // and creates the terminal again. The cleanup only kills the PTY if
+        // the component is TRULY being removed (mountedRef stays false after unmount).
+        if (mountedRef.current) return;
+        mountedRef.current = true;
+
         if (!containerRef.current) return;
 
         const terminal = new Terminal({
             cursorBlink: true,
-            scrollback: 10000,
+            cursorStyle: 'bar',
+            cursorWidth: 2,
+            scrollback: 5000,
             convertEol: true,
             allowProposedApi: true,
+            rightClickSelectsWord: true,
             theme: {
-                background: '#000000',
+                background: '#0a0a0a',
                 foreground: '#d4d4d4',
-                cursor: '#aeafad',
-                selectionBackground: '#264f78',
+                cursor: '#d4d4d4',
+                cursorAccent: '#0a0a0a',
+                selectionBackground: 'rgba(38, 79, 120, 0.6)',
+                selectionForeground: '#ffffff',
                 black: '#000000',
                 red: '#cd3131',
                 green: '#0dbc79',
@@ -63,29 +75,70 @@ function XTermView({ terminalId, isVisible, onFocus }: XTermViewProps) {
                 brightBlue: '#3b8eea',
                 brightMagenta: '#d670d6',
                 brightCyan: '#29b8db',
-                brightWhite: '#e5e5e5',
+                brightWhite: '#ffffff',
             },
-            fontFamily: '"JetBrains Mono", "Cascadia Code", "Fira Code", monospace',
+            fontFamily: '"JetBrains Mono", "Cascadia Code", "Fira Code", "Consolas", monospace',
             fontSize: 13,
-            lineHeight: 1.35,
-            letterSpacing: 0,
+            lineHeight: 1.3,
         });
 
         const fitAddon = new FitAddon();
         terminal.loadAddon(fitAddon);
+
+        try {
+            terminal.loadAddon(new WebLinksAddon());
+        } catch { /* not critical */ }
+
         terminal.open(containerRef.current);
 
         xtermRef.current = terminal;
         fitAddonRef.current = fitAddon;
 
-        // Initial fit after a short delay to allow DOM to settle
-        const initFitTimer = setTimeout(() => {
-            try { fitAddon.fit(); } catch { /* ignore */ }
-        }, 100);
+        // Clipboard support
+        terminal.attachCustomKeyEventHandler((ev: KeyboardEvent) => {
+            // Ctrl+C with selection → copy (don't send SIGINT)
+            if (ev.ctrlKey && ev.key === 'c' && terminal.hasSelection()) {
+                navigator.clipboard.writeText(terminal.getSelection());
+                terminal.clearSelection();
+                return false;
+            }
+            // Ctrl+V → paste
+            if (ev.ctrlKey && ev.key === 'v' && ev.type === 'keydown') {
+                navigator.clipboard.readText().then(text => {
+                    if (text) {
+                        const api = (window as any).electronAPI;
+                        api?.terminal?.input(terminalId, text);
+                    }
+                }).catch(() => {});
+                return false;
+            }
+            // Ctrl+Shift+C → always copy
+            if (ev.ctrlKey && ev.shiftKey && ev.key === 'C') {
+                const sel = terminal.getSelection();
+                if (sel) navigator.clipboard.writeText(sel);
+                return false;
+            }
+            // Ctrl+Shift+V → always paste
+            if (ev.ctrlKey && ev.shiftKey && ev.key === 'V' && ev.type === 'keydown') {
+                navigator.clipboard.readText().then(text => {
+                    if (text) {
+                        const api = (window as any).electronAPI;
+                        api?.terminal?.input(terminalId, text);
+                    }
+                }).catch(() => {});
+                return false;
+            }
+            return true;
+        });
+
+        // Initial fit after DOM settles
+        const initFit = setTimeout(() => {
+            try { fitAddon.fit(); } catch { /* */ }
+        }, 150);
 
         let ptyResizeTimer: ReturnType<typeof setTimeout>;
 
-        // Connect to Electron backend PTY
+        // Connect to backend PTY
         const electron = (window as any).electronAPI;
         if (electron?.terminal) {
             electron.terminal.create(terminalId);
@@ -99,58 +152,60 @@ function XTermView({ terminalId, isVisible, onFocus }: XTermViewProps) {
             });
 
             terminal.onResize(({ cols, rows }) => {
-                // Ignore transient invalid sizes while Split panels are being dragged.
                 if (!Number.isFinite(cols) || !Number.isFinite(rows)) return;
                 if (cols < 2 || rows < 2) return;
-
                 const prev = lastResizeRef.current;
                 if (prev && prev.cols === cols && prev.rows === rows) return;
-
                 lastResizeRef.current = { cols, rows };
-                
-                // Debounce backend PTY resize to prevent SIGWINCH spam 
-                // which causes extra prompts & vanishing text
                 clearTimeout(ptyResizeTimer);
                 ptyResizeTimer = setTimeout(() => {
                     electron.terminal.resize(terminalId, cols, rows);
-                }, 100);
+                }, 80);
             });
         }
 
-        // Debounced resize observer — prevents glitchiness
-        const observer = new ResizeObserver(() => {
-            debouncedFit();
-        });
+        // Resize observer
+        const observer = new ResizeObserver(() => debouncedFit());
         observer.observe(containerRef.current);
 
-        // Register in shared registry for code runner
         xtermRegistry.set(terminalId, terminal);
+        terminal.focus();
 
         return () => {
-            clearTimeout(initFitTimer);
+            // In StrictMode dev, this cleanup runs between mount #1 and mount #2.
+            // We set mountedRef to false so the next mount can re-create.
+            mountedRef.current = false;
+
+            clearTimeout(initFit);
             if (ptyResizeTimer) clearTimeout(ptyResizeTimer);
             if (fitTimerRef.current) cancelAnimationFrame(fitTimerRef.current);
             observer.disconnect();
             xtermRegistry.delete(terminalId);
-            const electron = (window as any).electronAPI;
-            // Kill backend PTY so StrictMode double-mount doesn't leave orphaned processes
-            electron?.terminal?.kill(terminalId);
-            electron?.terminal?.removeDataListener?.(terminalId);
-            try { terminal.dispose(); } catch { /* ignore */ }
+
+            // Delay PTY kill slightly — if StrictMode remounts within 100ms,
+            // the new mount will set mountedRef=true and we skip the kill.
+            const tid = terminalId;
+            setTimeout(() => {
+                if (!mountedRef.current) {
+                    const api = (window as any).electronAPI;
+                    api?.terminal?.kill(tid);
+                    api?.terminal?.removeDataListener?.(tid);
+                }
+            }, 100);
+
+            try { terminal.dispose(); } catch { /* */ }
         };
     }, [terminalId]);
 
-    // Handle visibility changes → refit so columns are correct
+    // Refit on visibility change
     useEffect(() => {
         if (isVisible && fitAddonRef.current && xtermRef.current?.element) {
-            // Use multiple delayed refits to handle slow layout transitions
             const t1 = setTimeout(() => debouncedFit(), 50);
-            const t2 = setTimeout(() => debouncedFit(), 200);
-            const t3 = setTimeout(() => {
+            const t2 = setTimeout(() => {
                 debouncedFit();
                 xtermRef.current?.focus();
-            }, 400);
-            return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+            }, 200);
+            return () => { clearTimeout(t1); clearTimeout(t2); };
         }
     }, [isVisible]);
 
@@ -158,7 +213,10 @@ function XTermView({ terminalId, isVisible, onFocus }: XTermViewProps) {
         <div
             ref={containerRef}
             className="xterm-container"
-            onClick={onFocus}
+            onClick={() => {
+                onFocus?.();
+                xtermRef.current?.focus();
+            }}
         />
     );
 }

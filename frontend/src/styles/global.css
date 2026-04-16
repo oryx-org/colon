@@ -134,3 +134,32 @@ body {
 .gutter.gutter-horizontal {
     background-image: none;
 }
+
+/* React Split Custom Panel Wrappers */
+.split-left-area-hidden {
+    display: none;
+    flex-direction: column; 
+    height: 100%; 
+    width: 100%;
+    min-width: 0; 
+    overflow: hidden;
+}
+
+.split-left-area-visible {
+    display: flex;
+    flex-direction: column; 
+    height: 100%; 
+    width: 100%;
+    min-width: 0; 
+    overflow: hidden;
+}
+
+.split-center-area {
+    display: flex; 
+    flex-direction: column; 
+    width: 100%;
+    min-width: 0; 
+    min-height: 0; 
+    overflow: hidden; 
+    height: 100%;
+}

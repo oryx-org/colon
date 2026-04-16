@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
     // Window controls
     windowControl: (action) => ipcRenderer.send('window-control', action),
+    newWindow: () => ipcRenderer.send('window-new'),
 
     // File system — dialogs
     openDirectory: () => ipcRenderer.invoke('dialog:openDirectory'),
@@ -18,6 +19,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     rename: (oldPath, newPath) => ipcRenderer.invoke('fs:rename', { oldPath, newPath }),
     createFile: (filePath) => ipcRenderer.invoke('fs:createFile', filePath),
     createDirectory: (dirPath) => ipcRenderer.invoke('fs:createDirectory', dirPath),
+    setWorkspace: (dirPath) => ipcRenderer.invoke('workspace:set', dirPath),
 
     // Terminal (PTY)
     terminal: {
@@ -42,6 +44,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // Code Engine
     getRunCommand: (filePath) => ipcRenderer.invoke('code:getRunCommand', filePath),
     lintCode: (filePath, content) => ipcRenderer.invoke('code:lint', { filePath, content }),
+
+    // Search
+    searchInFiles: (query, options) => ipcRenderer.invoke('search:inFiles', query, options),
+    replaceInFiles: (query, replacement, options) => ipcRenderer.invoke('search:replaceInFiles', query, replacement, options),
 
     // Animation System (LLM Engine)
     animation: {

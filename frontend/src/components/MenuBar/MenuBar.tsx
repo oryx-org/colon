@@ -4,60 +4,65 @@ import './MenuBar.css';
 
 interface MenuBarProps {
     onTerminalAction?: (action: string) => void;
+    onMenuAction?: (action: string) => void;
     activeFileName?: string;
 }
 
 const menus: Record<string, { label: string; shortcut?: string; action?: string; separator?: boolean }[]> = {
     File: [
-        { label: 'New File', shortcut: 'Ctrl+N' },
-        { label: 'New Window', shortcut: 'Ctrl+Shift+N' },
+        { label: 'New File', shortcut: 'Ctrl+N', action: 'newFile' },
+        { label: 'New Window', shortcut: 'Ctrl+Shift+N', action: 'newWindow' },
         { label: '', separator: true },
-        { label: 'Open Folder…', shortcut: 'Ctrl+K Ctrl+O' },
+        { label: 'Open Folder…', shortcut: 'Ctrl+K Ctrl+O', action: 'openFolder' },
         { label: '', separator: true },
-        { label: 'Save', shortcut: 'Ctrl+S' },
-        { label: 'Save All', shortcut: 'Ctrl+K S' },
+        { label: 'Save', shortcut: 'Ctrl+S', action: 'saveFile' },
+        { label: 'Save All', shortcut: 'Ctrl+K S', action: 'saveAllFiles' },
         { label: '', separator: true },
-        { label: 'Close Editor', shortcut: 'Ctrl+W' },
+        { label: 'Close Editor', shortcut: 'Ctrl+W', action: 'closeEditor' },
     ],
     Edit: [
-        { label: 'Undo', shortcut: 'Ctrl+Z' },
-        { label: 'Redo', shortcut: 'Ctrl+Y' },
+        { label: 'Undo', shortcut: 'Ctrl+Z', action: 'undo' },
+        { label: 'Redo', shortcut: 'Ctrl+Y', action: 'redo' },
         { label: '', separator: true },
-        { label: 'Cut', shortcut: 'Ctrl+X' },
-        { label: 'Copy', shortcut: 'Ctrl+C' },
-        { label: 'Paste', shortcut: 'Ctrl+V' },
+        { label: 'Cut', shortcut: 'Ctrl+X', action: 'cut' },
+        { label: 'Copy', shortcut: 'Ctrl+C', action: 'copy' },
+        { label: 'Paste', shortcut: 'Ctrl+V', action: 'paste' },
         { label: '', separator: true },
-        { label: 'Find', shortcut: 'Ctrl+F' },
-        { label: 'Replace', shortcut: 'Ctrl+H' },
+        { label: 'Find', shortcut: 'Ctrl+F', action: 'toggleSearch' },
+        { label: 'Replace', shortcut: 'Ctrl+H', action: 'toggleSearch' },
     ],
     Selection: [
-        { label: 'Select All', shortcut: 'Ctrl+A' },
-        { label: 'Expand Selection', shortcut: 'Alt+Shift+→' },
+        { label: 'Select All', shortcut: 'Ctrl+A', action: 'selectAll' },
+        { label: 'Expand Selection', shortcut: 'Alt+Shift+→', action: 'expandSelection' },
         { label: '', separator: true },
-        { label: 'Add Cursor Above', shortcut: 'Ctrl+Alt+↑' },
-        { label: 'Add Cursor Below', shortcut: 'Ctrl+Alt+↓' },
+        { label: 'Add Cursor Above', shortcut: 'Ctrl+Alt+↑', action: 'addCursorAbove' },
+        { label: 'Add Cursor Below', shortcut: 'Ctrl+Alt+↓', action: 'addCursorBelow' },
     ],
     View: [
-        { label: 'Explorer', shortcut: 'Ctrl+Shift+E' },
-        { label: 'Search', shortcut: 'Ctrl+Shift+F' },
+        { label: 'Command Palette', shortcut: 'Ctrl+Shift+P', action: 'openCommandPalette' },
+        { label: 'Settings', shortcut: 'Ctrl+,', action: 'openSettings' },
         { label: '', separator: true },
-        { label: 'Toggle Sidebar', shortcut: 'Ctrl+B' },
+        { label: 'Explorer', shortcut: 'Ctrl+Shift+E', action: 'toggleExplorer' },
+        { label: 'Search', shortcut: 'Ctrl+Shift+F', action: 'toggleSearch' },
         { label: '', separator: true },
-        { label: 'Zoom In', shortcut: 'Ctrl+=' },
-        { label: 'Zoom Out', shortcut: 'Ctrl+-' },
+        { label: 'Toggle Sidebar', shortcut: 'Ctrl+B', action: 'toggleSidebar' },
+        { label: '', separator: true },
+        { label: 'Zoom In', shortcut: 'Ctrl+=', action: 'zoomIn' },
+        { label: 'Zoom Out', shortcut: 'Ctrl+-', action: 'zoomOut' },
     ],
     Go: [
-        { label: 'Go to File…', shortcut: 'Ctrl+P' },
-        { label: 'Go to Line…', shortcut: 'Ctrl+G' },
+        { label: 'Go to File…', shortcut: 'Ctrl+P', action: 'openCommandPalette' },
+        { label: 'Go to Line…', shortcut: 'Ctrl+G', action: 'goToLine' },
         { label: '', separator: true },
-        { label: 'Back', shortcut: 'Alt+←' },
-        { label: 'Forward', shortcut: 'Alt+→' },
+        { label: 'Back', shortcut: 'Alt+←', action: 'navigateBack' },
+        { label: 'Forward', shortcut: 'Alt+→', action: 'navigateForward' },
     ],
     Run: [
-        { label: 'Start Debugging', shortcut: 'F5' },
-        { label: 'Run Without Debugging', shortcut: 'Ctrl+F5' },
+        { label: 'Run Code (No Debugging)', shortcut: 'F5', action: 'runCode' },
+        { label: 'Stop Code', shortcut: 'Shift+F5', action: 'stopCode' },
         { label: '', separator: true },
-        { label: 'Add Breakpoint', shortcut: 'F9' },
+        { label: 'Start Debugging', shortcut: 'Ctrl+F5', action: 'startDebugging' },
+        { label: 'Add Breakpoint', shortcut: 'F9', action: 'addBreakpoint' },
     ],
     Terminal: [
         { label: 'New Terminal', shortcut: 'Ctrl+Shift+`', action: 'newTerminal' },
@@ -66,17 +71,17 @@ const menus: Record<string, { label: string; shortcut?: string; action?: string;
         { label: 'Toggle Terminal', shortcut: 'Ctrl+`', action: 'toggleTerminal' },
         { label: 'Kill Terminal', shortcut: 'Ctrl+Shift+K', action: 'killTerminal' },
         { label: '', separator: true },
-        { label: 'Clear Terminal', shortcut: '' },
+        { label: 'Clear Terminal', shortcut: '', action: 'clearTerminal' },
     ],
     Help: [
-        { label: 'Welcome' },
-        { label: 'Documentation' },
+        { label: 'Welcome', action: 'showWelcome' },
+        { label: 'Documentation', action: 'showDocs' },
         { label: '', separator: true },
-        { label: 'About Colon' },
+        { label: 'About Colon', action: 'showAbout' },
     ],
 };
 
-function MenuBar({ onTerminalAction, activeFileName }: MenuBarProps) {
+function MenuBar({ onTerminalAction, onMenuAction, activeFileName }: MenuBarProps) {
     const [openMenu, setOpenMenu] = useState<string | null>(null);
     const menuBarRef = useRef<HTMLDivElement>(null);
 
@@ -93,7 +98,14 @@ function MenuBar({ onTerminalAction, activeFileName }: MenuBarProps) {
 
     const handleMenuAction = (action?: string) => {
         setOpenMenu(null);
-        if (action) onTerminalAction?.(action);
+        if (!action) return;
+        
+        // Some actions are terminal specific
+        if (action.includes('Terminal')) {
+            onTerminalAction?.(action);
+        } else {
+            onMenuAction?.(action);
+        }
     };
 
     return (

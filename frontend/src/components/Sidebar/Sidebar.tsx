@@ -9,9 +9,10 @@ interface SidebarProps {
     setActiveTab: (tab: string) => void;
     showTerminal?: boolean;
     setShowTerminal?: (show: boolean) => void;
+    onSettingsClick?: () => void;
 }
 
-function Sidebar({ activeTab, setActiveTab, showTerminal, setShowTerminal }: SidebarProps) {
+function Sidebar({ activeTab, setActiveTab, showTerminal, setShowTerminal, onSettingsClick }: SidebarProps) {
 
     return (
         <div className="sidebar">
@@ -48,8 +49,8 @@ function Sidebar({ activeTab, setActiveTab, showTerminal, setShowTerminal }: Sid
 
             <div className="sidebar-bottom">
                 <button
-                    className={`sidebar-btn ${activeTab === 'settings' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('settings')}
+                    className="sidebar-btn"
+                    onClick={onSettingsClick}
                     title="Settings"
                 >
                     <LuSettings className="sidebar-icon-svg" />

@@ -1,0 +1,69 @@
+.status-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 22px;
+    min-height: 22px;
+    padding: 0 10px;
+    background-color: #0a0a0a;
+    color: #8a8a8a;
+    border-top: 1px solid #1e1e1e;
+    font-size: 11.5px;
+    font-family: 'Inter', -apple-system, sans-serif;
+    user-select: none;
+    flex-shrink: 0;
+    z-index: 100;
+}
+
+.status-left,
+.status-right {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    height: 100%;
+}
+
+.status-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 6px;
+    height: 100%;
+    white-space: nowrap;
+    font-size: 11.5px;
+    line-height: 22px;
+}
+
+.status-item.clickable {
+    cursor: pointer;
+    border-radius: 2px;
+    transition: background-color 0.1s;
+}
+
+.status-item.clickable:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.status-item.branch {
+    gap: 5px;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: background-color 0.1s;
+}
+
+.status-item.branch:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.status-item.lang {
+    font-weight: 500;
+}
+
+.status-error-icon {
+    color: #f14c4c;
+}
+
+.status-warn-icon {
+    color: #cca700;
+    margin-left: 4px;
+}

@@ -8,6 +8,10 @@ import AnimationTab from './components/AnimationTab/AnimationTab';
 import { AnimationRecord } from './components/AnimationTab/AnimationTab';
 import Workspace from './components/Workspace/Workspace';
 import TerminalPanel, { TerminalPanelRef } from './components/TerminalPanel/TerminalPanel';
+import StatusBar from './components/StatusBar/StatusBar';
+import SearchPanel from './components/SearchPanel/SearchPanel';
+import CommandPalette from './components/CommandPalette/CommandPalette';
+import SettingsModal, { loadSettings } from './components/SettingsModal/SettingsModal';
 import './styles/global.css';
 
 export interface OpenFile {
@@ -69,6 +73,11 @@ function App() {
   const terminalRef = useRef<TerminalPanelRef>(null);
   const [_environments, setEnvironments] = useState<Record<string, RuntimeInfo>>({});
   const [isRunning, setIsRunning] = useState(false);
+
+  // Split sizes - persist across tab changes for VSCode-like behavior
+  const [leftPanelSize, setLeftPanelSize] = useState(20);
+  const [editorAnimationSize, setEditorAnimationSize] = useState(70);
+  const [terminalHeight, setTerminalHeight] = useState(38);
   // Mirror isRunning in a ref so keydown handler closure always reads fresh value
   const isRunningRef = useRef(false);
   const setIsRunningSync = (val: boolean) => {
@@ -84,6 +93,10 @@ function App() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [llmConfigured, setLlmConfigured] = useState(false);
   const [runtimeInstall, setRuntimeInstall] = useState<RuntimeInstallState>(INITIAL_INSTALL_STATE);
+  const [cursorPos, setCursorPos] = useState({ line: 1, column: 1 });
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [settings, setSettings] = useState(() => loadSettings());
 
   const refreshEnvironments = useCallback(async () => {
     const api = (window as any).electronAPI;
@@ -308,6 +321,91 @@ function App() {
     }
   };
 
+  const handleMenuAction = (action: string) => {
+    switch(action) {
+      case 'newFile':
+        setLeftTab('folder');
+        window.dispatchEvent(new CustomEvent('explorer-action', { detail: 'newFile' }));
+        break;
+      case 'newWindow':
+        if ((window as any).electronAPI?.newWindow) {
+          (window as any).electronAPI.newWindow();
+        }
+        break;
+      case 'openFolder':
+        setLeftTab('folder');
+        window.dispatchEvent(new CustomEvent('explorer-action', { detail: 'openFolder' }));
+        break;
+      case 'saveFile':
+        saveActiveFile();
+        break;
+      case 'saveAllFiles':
+        saveAllFiles();
+        break;
+      case 'closeEditor':
+        if (activeFileRef.current) handleCloseFileRef.current(activeFileRef.current.path);
+        break;
+      case 'undo':
+      case 'redo':
+      case 'cut':
+      case 'copy':
+      case 'paste':
+      case 'selectAll':
+      case 'expandSelection':
+      case 'addCursorAbove':
+      case 'addCursorBelow':
+      case 'goToLine':
+      case 'navigateBack':
+      case 'navigateForward':
+        window.dispatchEvent(new CustomEvent('editor-action', { detail: action }));
+        break;
+      case 'openCommandPalette':
+        setShowCommandPalette(true);
+        break;
+      case 'openSettings':
+        setShowSettings(true);
+        break;
+      case 'toggleExplorer':
+        setLeftTab(prev => prev === 'folder' ? 'none' : 'folder');
+        break;
+      case 'toggleSearch':
+        setLeftTab(prev => prev === 'search' ? 'none' : 'search');
+        break;
+      case 'runCode':
+        runActiveFile();
+        break;
+      case 'stopCode':
+        stopRunningCode();
+        break;
+      case 'zoomIn':
+        setSettings(prev => {
+          const newSet = { ...prev, fontSize: Math.min(prev.fontSize + 2, 32) };
+          localStorage.setItem('colon_settings', JSON.stringify(newSet));
+          return newSet;
+        });
+        break;
+      case 'zoomOut':
+        setSettings(prev => {
+          const newSet = { ...prev, fontSize: Math.max(prev.fontSize - 2, 8) };
+          localStorage.setItem('colon_settings', JSON.stringify(newSet));
+          return newSet;
+        });
+        break;
+      case 'toggleSidebar':
+        setLeftTab(prev => prev === 'none' ? 'folder' : 'none');
+        break;
+      case 'startDebugging':
+      case 'addBreakpoint':
+        window.alert('Debugging features are planned for a future update.');
+        break;
+      case 'showAbout':
+      case 'showWelcome':
+      case 'showDocs':
+        window.alert('Colon IDE v1.0\nBuilt for the Web & Desktop.');
+        break;
+    }
+  };
+
   const handleOpenFile = async (filePath: string, name: string) => {
     const existing = openFiles.find(f => f.path === filePath);
     if (existing) {
@@ -336,6 +434,7 @@ function App() {
     if (electron) {
       try {
         const content = await electron.readFile(filePath);
+        console.log(`[App] Read file ${filePath}, content length: ${content?.length}`);
         const languageMap: Record<string, string> = {
           'js': 'javascript', 'jsx': 'javascript', 'mjs': 'javascript',
           'ts': 'typescript', 'tsx': 'typescript',
@@ -404,26 +503,51 @@ function App() {
     }
   };
 
+  const saveAllFiles = async () => {
+    const electron = (window as any).electronAPI;
+    if (!electron) return;
+
+    const dirtyFiles = openFiles.filter(f => f.isDirty);
+    for (const file of dirtyFiles) {
+      const success = await electron.writeFile(file.path, file.content);
+      if (success) {
+        setOpenFiles(prev => prev.map(f =>
+          f.path === file.path ? { ...f, isDirty: false } : f
+        ));
+      }
+    }
+  };
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Command Palette (Ctrl+Shift+P)
+      if (e.ctrlKey && e.shiftKey && e.key.toUpperCase() === 'P') {
+        e.preventDefault();
+        setShowCommandPalette(true);
+      }
+      // Global Search (Ctrl+Shift+F)
+      else if (e.ctrlKey && e.shiftKey && e.key.toUpperCase() === 'F') {
+        e.preventDefault();
+        setLeftTab('search');
+      }
       // Ctrl+S / Cmd+S — save
-      if ((e.ctrlKey || e.metaKey) && e.key === 's' && !e.shiftKey) {
+      else if ((e.ctrlKey || e.metaKey) && e.key === 's' && !e.shiftKey) {
         e.preventDefault();
         saveActiveFile();
       }
       // Ctrl+W — close active tab
-      if ((e.ctrlKey || e.metaKey) && e.key === 'w') {
+      else if ((e.ctrlKey || e.metaKey) && e.key === 'w') {
         e.preventDefault();
         const file = activeFileRef.current;
         if (file) handleCloseFileRef.current(file.path);
       }
-      // Ctrl+F5 — run active file (read isRunning from ref to avoid stale closure)
-      if ((e.ctrlKey || e.metaKey) && e.key === 'F5' && !e.shiftKey) {
+      // Ctrl+F5 or F5 — run active file
+      else if (( (e.ctrlKey || e.metaKey) && e.key === 'F5' && !e.shiftKey ) || e.key === 'F5') {
         e.preventDefault();
         if (!isRunningRef.current) runActiveFile();
       }
       // Ctrl+Shift+F5 — stop
-      if ((e.ctrlKey || e.metaKey) && e.key === 'F5' && e.shiftKey) {
+      else if ((e.ctrlKey || e.metaKey) && e.key === 'F5' && e.shiftKey) {
         e.preventDefault();
         stopRunningCode();
       }
@@ -502,28 +626,17 @@ function App() {
   const toggleMaximize = () => setIsTerminalMaximized(v => !v);
 
   const workspaceTopContent = (
-    rightTab === 'video' ? (
-      <Split className="split split-horizontal" sizes={[70, 30]} minSize={[280, 220]} gutterSize={2} snapOffset={20}>
-        <Workspace
-          openFiles={openFiles}
-          activeFilePath={activeFilePath}
-          setActiveFilePath={setActiveFilePath}
-          onCloseFile={handleCloseFile}
-          onFileChange={handleFileChange}
-          onRunFile={runActiveFile}
-          onStopRun={stopRunningCode}
-          isRunning={isRunning}
-          onGenerateAnimation={handleGenerateAnimation}
-        />
-        <AnimationTab
-          animations={animations}
-          isGenerating={isGenerating}
-          onDeleteAnimation={handleDeleteAnimation}
-          onClearAll={handleClearAnimations}
-          llmConfigured={llmConfigured}
-        />
-      </Split>
-    ) : (
+    <Split className="split split-horizontal" 
+      sizes={rightTab === 'video' ? [editorAnimationSize, 100 - editorAnimationSize] : [100, 0]} 
+      minSize={rightTab === 'video' ? [280, 220] : [300, 0]} 
+      gutterSize={2} 
+      snapOffset={20}
+      onDragEnd={(sizes: number[]) => {
+        if (rightTab === 'video') {
+          setEditorAnimationSize(sizes[0]);
+        }
+      }}
+    >
       <Workspace
         openFiles={openFiles}
         activeFilePath={activeFilePath}
@@ -534,8 +647,19 @@ function App() {
         onStopRun={stopRunningCode}
         isRunning={isRunning}
         onGenerateAnimation={handleGenerateAnimation}
+        onCursorChange={(line, col) => setCursorPos({ line, column: col })}
+        settings={settings}
       />
-    )
+      {rightTab === 'video' && (
+        <AnimationTab
+          animations={animations}
+          isGenerating={isGenerating}
+          onDeleteAnimation={handleDeleteAnimation}
+          onClearAll={handleClearAnimations}
+          llmConfigured={llmConfigured}
+        />
+      )}
+    </Split>
   );
 
   /**
@@ -547,64 +671,105 @@ function App() {
    *   - sendCommandToTerminal works immediately without timing hacks
    */
 
-  /* Editor area content — the leftTab conditional only controls this part */
-  const editorArea = leftTab === 'folder' ? (
+  const leftArea = (
+    <div className={leftTab === 'none' ? 'split-left-area-hidden' : 'split-left-area-visible'}>
+      <div style={{ display: leftTab === 'folder' ? 'flex' : 'none', flex: 1, height: '100%', width: '100%' }}>
+        <ExplorerPanel onFileClick={handleOpenFile} />
+      </div>
+      <div style={{ display: leftTab === 'search' ? 'flex' : 'none', flex: 1, height: '100%', width: '100%' }}>
+        <SearchPanel onFileClick={handleOpenFile} />
+      </div>
+    </div>
+  );
+
+  const centerEditorAndTerminal = (
+    <div className="split-center-area">
+      {isTerminalMaximized ? (
+        <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
+          {workspaceTopContent}
+        </div>
+      ) : showTerminal ? (
+        <Split
+          className="split split-vertical"
+          sizes={[100 - terminalHeight, terminalHeight]}
+          minSize={[100, 100]}
+          gutterSize={2}
+          snapOffset={20}
+          direction="vertical"
+          onDragEnd={(sizes: number[]) => {
+            setTerminalHeight(sizes[1]);
+          }}
+        >
+          <div style={{ overflow: 'hidden', minHeight: 0 }}>
+            {workspaceTopContent}
+          </div>
+          <TerminalPanel
+            ref={terminalRef}
+            onClose={toggleTerminal}
+            onMaximize={toggleMaximize}
+            isMaximized={isTerminalMaximized}
+          />
+        </Split>
+      ) : (
+        <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
+          {workspaceTopContent}
+        </div>
+      )}
+    </div>
+  );
+
+  const mainSplitArea = (
     <Split
       className="split split-horizontal"
-      sizes={[18, 82]}
-      minSize={[140, 300]}
+      sizes={leftTab === 'none' ? [0, 100] : [leftPanelSize, 100 - leftPanelSize]}
+      minSize={leftTab === 'none' ? [0, 300] : [180, 300]}
       gutterSize={2}
       snapOffset={10}
+      onDragEnd={(sizes: number[]) => {
+        if (leftTab !== 'none') {
+          setLeftPanelSize(sizes[0]);
+        }
+      }}
     >
-      <ExplorerPanel onFileClick={handleOpenFile} />
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden', height: '100%' }}>
-        {workspaceTopContent}
-      </div>
+      {leftArea}
+      {centerEditorAndTerminal}
     </Split>
-  ) : (
-    <div style={{ display: 'flex', flex: 1, overflow: 'hidden', height: '100%' }}>
-      {workspaceTopContent}
-    </div>
   );
 
   return (
     <div className="app-container">
-      <MenuBar onTerminalAction={handleTerminalAction} activeFileName={activeFileRef.current?.name} />
+      <MenuBar onTerminalAction={handleTerminalAction} onMenuAction={handleMenuAction} activeFileName={activeFileRef.current?.name} />
       <div className="main-content">
-        <Sidebar activeTab={leftTab} setActiveTab={setLeftTab} showTerminal={showTerminal} setShowTerminal={setShowTerminal} />
+        <Sidebar activeTab={leftTab} setActiveTab={setLeftTab} showTerminal={showTerminal} setShowTerminal={setShowTerminal} onSettingsClick={() => setShowSettings(true)} />
 
-        {/* Outer column: editor on top, terminal on bottom — FIXED tree position */}
+        {/* Outer column: Flex container wrapper for the main split layout */}
         <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', height: '100%' }}>
-          {/* Editor area — hidden (not unmounted) when terminal is maximised */}
-          <div style={{
-            flex: 1,
-            overflow: 'hidden',
-            minHeight: 0,
-            display: isTerminalMaximized ? 'none' : 'flex',
-            flexDirection: 'column',
-          }}>
-            {editorArea}
-          </div>
-
-          {/* Terminal area — ALWAYS in the DOM, height controlled by CSS only */}
-          <div style={
-            isTerminalMaximized
-              ? { flex: 1, overflow: 'hidden', minHeight: 0 }
-              : showTerminal
-                ? { height: '38%', overflow: 'hidden', flexShrink: 0 }
-                : { height: 0, overflow: 'hidden', flexShrink: 0 }
-          }>
-            <TerminalPanel
-              ref={terminalRef}
-              onClose={toggleTerminal}
-              onMaximize={toggleMaximize}
-              isMaximized={isTerminalMaximized}
-            />
-          </div>
+          {mainSplitArea}
         </div>
 
         <RightSidebar activeTab={rightTab} setActiveTab={setRightTab} />
       </div>
+
+      <StatusBar
+        language={activeFileRef.current?.language || 'plaintext'}
+        line={cursorPos.line}
+        column={cursorPos.column}
+      />
+
+      <CommandPalette
+        isOpen={showCommandPalette}
+        onClose={() => setShowCommandPalette(false)}
+        commands={[
+          { id: '1', category: 'File', label: 'Save', shortcut: 'Ctrl+S', action: saveActiveFile },
+          { id: '2', category: 'File', label: 'Close Workspace', action: () => setOpenFiles([]) },
+          { id: '3', category: 'View', label: 'Toggle Search', shortcut: 'Ctrl+Shift+F', action: () => setLeftTab(l => l === 'search' ? 'folder' : 'search') },
+          { id: '4', category: 'View', label: 'Toggle Terminal', action: toggleTerminal },
+          { id: '8', category: 'Preferences', label: 'Open Settings', shortcut: 'Ctrl+,', action: () => setShowSettings(true) },
+          { id: '5', category: 'Run', label: 'Run Code', shortcut: 'F5', action: runActiveFile },
+          { id: '6', category: 'Run', label: 'Stop Running Code', action: stopRunningCode },
+          { id: '7', category: 'AI', label: 'Toggle Animation Tab', action: () => setRightTab(r => r === 'video' ? 'none' : 'video') }
+        ]}
+      />
 
       {runtimeInstall.runtimeName && (
         <div
@@ -669,6 +834,11 @@ function App() {
           </pre>
         </div>
       )}
+    <SettingsModal 
+        isOpen={showSettings} 
+        onClose={() => setShowSettings(false)} 
+        onSettingsChange={setSettings} 
+      />
     </div>
   );
 }

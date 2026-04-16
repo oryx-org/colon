@@ -82,6 +82,19 @@ function ExplorerPanel({ onFileClick }: ExplorerPanelProps) {
         return () => document.removeEventListener('click', handler);
     }, [contextMenu]);
 
+    // ── Listen for global explorer actions
+    useEffect(() => {
+        const handleExplorerAction = (e: any) => {
+            if (e.detail === 'openFolder') {
+                handleOpenFolder();
+            } else if (e.detail === 'newFile') {
+                startCreate(false);
+            }
+        };
+        window.addEventListener('explorer-action', handleExplorerAction);
+        return () => window.removeEventListener('explorer-action', handleExplorerAction);
+    }, [rootPath, selectedPath, tree]);
+
     /* ─────────────────────────────────────────────
        CORE: Load / Refresh
     ───────────────────────────────────────────── */
