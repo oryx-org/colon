@@ -49,6 +49,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
     searchInFiles: (query, options) => ipcRenderer.invoke('search:inFiles', query, options),
     replaceInFiles: (query, replacement, options) => ipcRenderer.invoke('search:replaceInFiles', query, replacement, options),
 
+    // Git
+    git: {
+        status: (cwd) => ipcRenderer.invoke('git:status', cwd),
+        branch: (cwd) => ipcRenderer.invoke('git:branch', cwd),
+        run: (cwd, command) => ipcRenderer.invoke('git:run', cwd, command)
+    },
+
+    // Debugger
+    debug: {
+        start: (filePath, language, options) => ipcRenderer.invoke('debug:start', { filePath, language, options }),
+        stop: (sessionId) => ipcRenderer.invoke('debug:stop', sessionId),
+        step: (sessionId, action) => ipcRenderer.invoke('debug:step', { sessionId, action }),
+        status: (sessionId) => ipcRenderer.invoke('debug:status', sessionId)
+    },
+
     // Animation System (LLM Engine)
     animation: {
         detectBlocksUniversal: (code, language) =>

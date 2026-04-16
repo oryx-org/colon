@@ -715,7 +715,7 @@ function AnimationPlayer({ animation, height = 300 }: Props) {
 
     return (
         <div ref={containerRef} className={`anim-player ${expanded ? 'expanded' : ''}`}
-            style={{ height: expanded ? '100vh' : `${height}px` }}>
+            style={{ height: expanded ? '100%' : `${height}px` }}>
             <canvas ref={canvasRef} className="anim-canvas-el" />
             <div className="anim-controls">
                 <button onClick={onBack} disabled={fi === 0} title="Previous"><LuSkipBack size={14} /></button>

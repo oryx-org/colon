@@ -7,6 +7,12 @@
     "start": "electron . --no-sandbox",
     "dev": "concurrently \"cd ../frontend && npm run dev\" \"wait-on http://localhost:5173 && electron . --no-sandbox\"",
     "build": "electron-builder",
+    "build:frontend": "npm --prefix ../frontend run build",
+    "package": "npm run build:frontend && electron-builder",
+    "package:dir": "npm run build:frontend && electron-builder --dir",
+    "package:linux": "npm run build:frontend && electron-builder --linux",
+    "package:win": "npm run build:frontend && electron-builder --win",
+    "package:mac": "npm run build:frontend && electron-builder --mac",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -21,6 +27,7 @@
     "@google/generative-ai": "^0.24.1",
     "axios": "^1.13.6",
     "chokidar": "^5.0.0",
+    "dotenv": "^17.4.2",
     "electron-store": "^10.1.0",
     "extract-zip": "^2.0.1",
     "node-pty": "^1.1.0",
@@ -35,5 +42,53 @@
     "electron": "^35.7.5",
     "electron-builder": "^26.8.1",
     "wait-on": "^8.0.5"
+  },
+  "build": {
+    "appId": "com.colon.ide",
+    "productName": "Colon IDE",
+    "asar": true,
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "services/**/*",
+      "package.json",
+      "!npm_log.txt",
+      "!**/*.map"
+    ],
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Development",
+      "artifactName": "Colon-IDE-${version}-${arch}.${ext}",
+      "icon": "build/icon.png"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.developer-tools",
+      "artifactName": "Colon-IDE-${version}-${arch}.${ext}"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "Colon-IDE-${version}-${arch}-Setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }

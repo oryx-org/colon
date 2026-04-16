@@ -41,21 +41,24 @@ function getRunConfig(filePath, runtimeId, runtimeCommand) {
             compileCmd: runtimeCommand || 'gcc',
             compileArgs: [filePath, '-o', path.join(outDir, baseName), '-lm'],
             cmd: path.join(outDir, baseName),
-            args: []
+            args: [],
+            outputFile: path.join(outDir, baseName)
         },
         gpp: {
             needsCompile: true,
             compileCmd: runtimeCommand || 'g++',
             compileArgs: [filePath, '-o', path.join(outDir, baseName), '-lstdc++'],
             cmd: path.join(outDir, baseName),
-            args: []
+            args: [],
+            outputFile: path.join(outDir, baseName)
         },
         java: {
             needsCompile: true,
             compileCmd: 'javac',
             compileArgs: [filePath],
             cmd: 'java',
-            args: ['-cp', dir, baseName]
+            args: ['-cp', dir, baseName],
+            outputFile: path.join(dir, baseName + '.class')
         },
         go: {
             cmd: runtimeCommand || 'go',
@@ -67,7 +70,8 @@ function getRunConfig(filePath, runtimeId, runtimeCommand) {
             compileCmd: runtimeCommand || 'rustc',
             compileArgs: [filePath, '-o', path.join(outDir, baseName)],
             cmd: path.join(outDir, baseName),
-            args: []
+            args: [],
+            outputFile: path.join(outDir, baseName)
         }
     };
 
@@ -136,10 +140,20 @@ function runCode(filePath, runtimeId, runtimeCommand, onOutput) {
 
         proc.on('close', (code) => {
             onOutput('exit', `\n[Process exited with code ${code}]\n`);
+            if (config.outputFile) {
+                fs.unlink(config.outputFile, (err) => {
+                    if (err && err.code !== 'ENOENT') {
+                        console.warn('Failed to delete compiled artifact:', config.outputFile, err.message);
+                    }
+                });
+            }
         });
 
         proc.on('error', (err) => {
             onOutput('error', `Failed to start process: ${err.message}`);
+            if (config.outputFile) {
+                fs.unlink(config.outputFile, () => {});
+            }
         });
 
         return () => {

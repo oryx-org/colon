@@ -246,6 +246,9 @@ function Workspace({ openFiles, activeFilePath, setActiveFilePath, onCloseFile, 
                 case 'addCursorAbove': ed.trigger('keyboard', 'editor.action.insertCursorAbove', null); break;
                 case 'addCursorBelow': ed.trigger('keyboard', 'editor.action.insertCursorBelow', null); break;
 
+                // Format
+                case 'formatDocument': ed.trigger('keyboard', 'editor.action.formatDocument', null); break;
+
                 // Navigation
                 case 'goToLine': ed.trigger('keyboard', 'editor.action.gotoLine', null); break;
                 case 'navigateBack': ed.trigger('keyboard', 'workbench.action.navigateBack', null); break;
@@ -351,10 +354,10 @@ function Workspace({ openFiles, activeFilePath, setActiveFilePath, onCloseFile, 
                     beforeMount={handleEditorWillMount}
                     onMount={handleEditorDidMount}
                     options={{
-                        minimap: { enabled: false },
+                        minimap: { enabled: settings?.minimap ?? false },
                         glyphMargin: true,
                         fontSize: settings?.fontSize || 14,
-                        fontFamily: "'JetBrains Mono', monospace",
+                        fontFamily: settings?.fontFamily || "'JetBrains Mono', monospace",
                         lineHeight: 22,
                         padding: { top: 16 },
                         scrollBeyondLastLine: false,

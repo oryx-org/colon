@@ -11,7 +11,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: radial-gradient(circle at 50% 50%, #0A0A0A 0%, #000000 100%);
+    background: radial-gradient(circle at 50% 50%, var(--bg-primary) 0%, var(--bg-primary) 100%);
 }
 
 .empty-workspace-state {
@@ -24,7 +24,7 @@
 .colon-logo-large {
     font-size: 80px;
     font-weight: 900;
-    color: #111;
+    color: var(--text-primary);
     font-family: 'JetBrains Mono', monospace;
     margin-bottom: 24px;
     user-select: none;
@@ -47,12 +47,13 @@
 }
 
 .shortcut-row kbd {
-    background: #111;
-    border: 1px solid #222;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-active);
     border-radius: 3px;
     padding: 1px 6px;
     font-size: 11px;
     font-family: 'JetBrains Mono', monospace;
+    color: var(--text-secondary);
 }
 
 /* Tabs */
@@ -89,7 +90,7 @@
     display: flex;
     align-items: center;
     gap: 4px;
-    background: #16a34a;
+    background: var(--status-success);
     color: white;
     border: none;
     padding: 4px 12px;
@@ -102,15 +103,15 @@
 }
 
 .run-btn:hover {
-    background: #15803d;
+    background: var(--status-success-strong);
 }
 
 .run-btn.stop {
-    background: #dc2626;
+    background: var(--status-error);
 }
 
 .run-btn.stop:hover {
-    background: #b91c1c;
+    background: var(--status-error-strong);
 }
 
 .workspace-tabs::-webkit-scrollbar {
@@ -176,7 +177,7 @@
 .workspace-editor-container {
     flex: 1;
     overflow: hidden;
-    background-color: #000;
+    background-color: transparent;
 }
 
 /* Block play icon in editor glyph margin */

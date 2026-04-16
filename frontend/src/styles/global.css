@@ -7,25 +7,36 @@
     --bg-elevated: #111111;
     --bg-hover: #1A1A1A;
 
+    /* Legacy aliases used by some panels */
+    --bg-secondary: var(--bg-panel);
+
     /* Borders / Dividers */
     --border-light: #1E1E1E;
     --border-strong: #2C2C2C;
     --border-active: #333333;
+    --border-color: var(--border-strong);
 
     /* Typography */
     --text-primary: #FAFAFA;
     --text-secondary: #A1A1AA;
     --text-muted: #52525B;
 
+    /* Legacy typography alias */
+    --font-family: 'Inter', -apple-system, sans-serif;
+
     /* Brand Accents */
     --accent-blue: #3B82F6;
     --accent-purple: #8B5CF6;
     --accent-teal: #14B8A6;
+    --accent-primary: var(--accent-blue);
+    --accent-hover: #2563EB;
 
     /* Status Colors */
     --status-success: #10B981;
+    --status-success-strong: #059669;
     --status-warning: #F59E0B;
     --status-error: #EF4444;
+    --status-error-strong: #DC2626;
 
     /* Geometry & Spacing */
     --radius-sm: 4px;
@@ -33,6 +44,27 @@
     --radius-lg: 12px;
     --header-height: 48px;
     --sidebar-width: 56px;
+}
+
+:root[data-theme='light'] {
+    --bg-primary: #f7f7f8;
+    --bg-panel: #ffffff;
+    --bg-elevated: #f1f3f5;
+    --bg-hover: #e9edf2;
+    --bg-secondary: var(--bg-panel);
+
+    --border-light: #d7dde5;
+    --border-strong: #c7cfda;
+    --border-active: #a6b2c1;
+    --border-color: var(--border-strong);
+
+    --text-primary: #111827;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
+
+    --font-family: 'Inter', -apple-system, sans-serif;
+    --accent-primary: var(--accent-blue);
+    --accent-hover: #2563EB;
 }
 
 * {
@@ -162,4 +194,16 @@ body {
     min-height: 0; 
     overflow: hidden; 
     height: 100%;
+}
+
+.animation-pane-host {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    isolation: isolate;
 }

@@ -7,13 +7,19 @@ interface Settings {
     tabSize: number;
     wordWrap: 'on' | 'off';
     theme: 'dark' | 'light';
+    minimap: boolean;
+    fontFamily: string;
+    formatOnSave: boolean;
 }
 
 const DEFAULT_SETTINGS: Settings = {
     fontSize: 14,
     tabSize: 4,
     wordWrap: 'off',
-    theme: 'dark'
+    theme: 'dark',
+    minimap: false,
+    fontFamily: "'JetBrains Mono', monospace",
+    formatOnSave: true
 };
 
 interface SettingsModalProps {
@@ -61,6 +67,38 @@ function SettingsModal({ isOpen, onClose, onSettingsChange }: SettingsModalProps
                         />
                     </div>
                     <div className="setting-group">
+                        <label>Font Family</label>
+                        <select
+                            value={settings.fontFamily}
+                            onChange={e => update('fontFamily', e.target.value)}
+                        >
+                            <option value="'JetBrains Mono', monospace">JetBrains Mono</option>
+                            <option value="'Fira Code', monospace">Fira Code</option>
+                            <option value="Consolas, 'Courier New', monospace">Consolas</option>
+                            <option value="'Cascadia Code', monospace">Cascadia Code</option>
+                        </select>
+                    </div>
+                    <div className="setting-group">
+                        <label>Show Minimap</label>
+                        <select
+                            value={settings.minimap ? 'yes' : 'no'}
+                            onChange={e => update('minimap', e.target.value === 'yes')}
+                        >
+                            <option value="no">Hidden</option>
+                            <option value="yes">Visible</option>
+                        </select>
+                    </div>
+                    <div className="setting-group">
+                        <label>Format on Save</label>
+                        <select
+                            value={settings.formatOnSave ? 'yes' : 'no'}
+                            onChange={e => update('formatOnSave', e.target.value === 'yes')}
+                        >
+                            <option value="yes">Enabled</option>
+                            <option value="no">Disabled</option>
+                        </select>
+                    </div>
+                    <div className="setting-group">
                         <label>Tab Size</label>
                         <select
                             value={settings.tabSize}
@@ -85,8 +123,7 @@ function SettingsModal({ isOpen, onClose, onSettingsChange }: SettingsModalProps
                         <label>Theme</label>
                         <select
                             value={settings.theme}
-                            disabled
-                            title="Theme toggle coming soon"
+                            onChange={e => update('theme', e.target.value as 'dark' | 'light')}
                         >
                             <option value="dark">Colon Dark (Default)</option>
                             <option value="light">Colon Light</option>

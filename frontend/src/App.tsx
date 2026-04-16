@@ -10,6 +10,9 @@ import Workspace from './components/Workspace/Workspace';
 import TerminalPanel, { TerminalPanelRef } from './components/TerminalPanel/TerminalPanel';
 import StatusBar from './components/StatusBar/StatusBar';
 import SearchPanel from './components/SearchPanel/SearchPanel';
+import SourceControlPanel from './components/SourceControlPanel/SourceControlPanel';
+import RunAndDebugPanel from './components/RunAndDebugPanel/RunAndDebugPanel';
+import LanguageManagerPanel from './components/LanguageManagerPanel/LanguageManagerPanel';
 import CommandPalette from './components/CommandPalette/CommandPalette';
 import SettingsModal, { loadSettings } from './components/SettingsModal/SettingsModal';
 import './styles/global.css';
@@ -65,7 +68,7 @@ const INITIAL_INSTALL_STATE: RuntimeInstallState = {
 
 function App() {
   const [leftTab, setLeftTab] = useState('folder');
-  const [rightTab, setRightTab] = useState('video');
+  const [rightTab, setRightTab] = useState('none');
   const [showTerminal, setShowTerminal] = useState(true);
   const [isTerminalMaximized, setIsTerminalMaximized] = useState(false);
   const [openFiles, setOpenFiles] = useState<OpenFile[]>([]);
@@ -97,6 +100,11 @@ function App() {
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState(() => loadSettings());
+
+  useEffect(() => {
+    const theme = settings?.theme || 'dark';
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [settings?.theme]);
 
   const refreshEnvironments = useCallback(async () => {
     const api = (window as any).electronAPI;
@@ -407,6 +415,10 @@ function App() {
   };
 
   const handleOpenFile = async (filePath: string, name: string) => {
+    // Ensure transient overlays never block editor interaction after selecting a file.
+    setShowCommandPalette(false);
+    setShowSettings(false);
+
     const existing = openFiles.find(f => f.path === filePath);
     if (existing) {
       setActiveFilePath(filePath);
@@ -492,9 +504,17 @@ function App() {
     const fileToSave = activeFileRef.current;
     if (!fileToSave || !fileToSave.isDirty) return;
 
+    if (settings?.formatOnSave) {
+      window.dispatchEvent(new CustomEvent('editor-action', { detail: 'formatDocument' }));
+      // Give the editor 50ms to apply formatting changes before dumping to disk
+      await new Promise(r => setTimeout(r, 50));
+    }
+
     const electron = (window as any).electronAPI;
     if (electron) {
-      const success = await electron.writeFile(fileToSave.path, fileToSave.content);
+      // Re-fetch content to ensure we save the formatted output
+      const contentToSave = openFiles.find(f => f.path === fileToSave.path)?.content || fileToSave.content;
+      const success = await electron.writeFile(fileToSave.path, contentToSave);
       if (success) {
         setOpenFiles(prev => prev.map(f =>
           f.path === fileToSave.path ? { ...f, isDirty: false } : f
@@ -625,19 +645,45 @@ function App() {
   const toggleTerminal = () => setShowTerminal(v => !v);
   const toggleMaximize = () => setIsTerminalMaximized(v => !v);
 
-  const workspaceTopContent = (
+  const workspaceTopContent = rightTab === 'video' ? (
     <Split className="split split-horizontal" 
-      sizes={rightTab === 'video' ? [editorAnimationSize, 100 - editorAnimationSize] : [100, 0]} 
-      minSize={rightTab === 'video' ? [280, 220] : [300, 0]} 
+      sizes={[editorAnimationSize, 100 - editorAnimationSize]} 
+      minSize={[280, 220]} 
       gutterSize={2} 
       snapOffset={20}
       onDragEnd={(sizes: number[]) => {
-        if (rightTab === 'video') {
-          setEditorAnimationSize(sizes[0]);
-        }
+        // Keep editor pane dominant; avoid accidental near-zero width editor.
+        const clamped = Math.max(45, Math.min(85, sizes[0]));
+        setEditorAnimationSize(clamped);
       }}
     >
-      <Workspace
+      <div style={{ overflow: 'hidden', height: '100%' }}>
+        <Workspace
+          openFiles={openFiles}
+          activeFilePath={activeFilePath}
+          setActiveFilePath={setActiveFilePath}
+          onCloseFile={handleCloseFile}
+          onFileChange={handleFileChange}
+          onRunFile={runActiveFile}
+          onStopRun={stopRunningCode}
+          isRunning={isRunning}
+          onGenerateAnimation={handleGenerateAnimation}
+          onCursorChange={(line, col) => setCursorPos({ line, column: col })}
+          settings={settings}
+        />
+      </div>
+      <div className="animation-pane-host">
+        <AnimationTab
+          animations={animations}
+          isGenerating={isGenerating}
+          onDeleteAnimation={handleDeleteAnimation}
+          onClearAll={handleClearAnimations}
+          llmConfigured={llmConfigured}
+        />
+      </div>
+    </Split>
+  ) : (
+    <Workspace
         openFiles={openFiles}
         activeFilePath={activeFilePath}
         setActiveFilePath={setActiveFilePath}
@@ -649,17 +695,7 @@ function App() {
         onGenerateAnimation={handleGenerateAnimation}
         onCursorChange={(line, col) => setCursorPos({ line, column: col })}
         settings={settings}
-      />
-      {rightTab === 'video' && (
-        <AnimationTab
-          animations={animations}
-          isGenerating={isGenerating}
-          onDeleteAnimation={handleDeleteAnimation}
-          onClearAll={handleClearAnimations}
-          llmConfigured={llmConfigured}
-        />
-      )}
-    </Split>
+    />
   );
 
   /**
@@ -678,6 +714,22 @@ function App() {
       </div>
       <div style={{ display: leftTab === 'search' ? 'flex' : 'none', flex: 1, height: '100%', width: '100%' }}>
         <SearchPanel onFileClick={handleOpenFile} />
+      </div>
+      <div style={{ display: leftTab === 'git' ? 'flex' : 'none', flex: 1, height: '100%', width: '100%' }}>
+        <SourceControlPanel onFileClick={handleOpenFile} />
+      </div>
+      <div style={{ display: leftTab === 'debug' ? 'flex' : 'none', flex: 1, height: '100%', width: '100%' }}>
+        <RunAndDebugPanel 
+            activeFileName={activeFileRef.current?.name}
+            activeFilePath={activeFileRef.current?.path}
+            activeLanguage={activeFileRef.current?.language}
+            onRunFile={runActiveFile} 
+            onStopRun={stopRunningCode}
+            isRunning={isRunning}
+        />
+      </div>
+      <div style={{ display: leftTab === 'category' ? 'flex' : 'none', flex: 1, height: '100%', width: '100%' }}>
+        <LanguageManagerPanel />
       </div>
     </div>
   );
@@ -727,7 +779,8 @@ function App() {
       snapOffset={10}
       onDragEnd={(sizes: number[]) => {
         if (leftTab !== 'none') {
-          setLeftPanelSize(sizes[0]);
+          const clamped = Math.max(14, Math.min(36, sizes[0]));
+          setLeftPanelSize(clamped);
         }
       }}
     >

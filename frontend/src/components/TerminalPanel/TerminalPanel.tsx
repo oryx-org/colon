@@ -318,13 +318,13 @@ const TerminalPanel = forwardRef<TerminalPanelRef, TerminalPanelProps>(({ onClos
                                 <p>No active terminals — click <strong>+</strong> to create one</p>
                             </div>
                         ) : (
-                            <div className="terminal-content placeholder-tab">
+                            <div className="terminal-content panel-tab-content">
                                 {activeTab === 'problems' && <p>No problems detected in the workspace.</p>}
-                                {activeTab === 'output' && <p>Output from tasks will appear here.</p>}
-                                {activeTab === 'debug' && <p>Debug console output will appear here.</p>}
+                                {activeTab === 'output' && <p>Run a task or command to see output logs here.</p>}
+                                {activeTab === 'debug' && <p>Start a debug session to stream debug console logs here.</p>}
                                 {activeTab === 'ports' && (
                                     <div className="ports-view">
-                                        <p className="ports-hint">Forwarded ports will appear here.</p>
+                                        <p className="ports-hint">Ports exposed by running services are listed here.</p>
                                         <div className="ports-row">
                                             <span className="port-num">5173</span>
                                             <span className="port-label">Vite Dev Server</span>

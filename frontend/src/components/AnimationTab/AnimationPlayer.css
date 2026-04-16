@@ -3,7 +3,7 @@
 .anim-player {
     display: flex;
     flex-direction: column;
-    background: #0b0b18;
+    background: var(--bg-primary);
     overflow: hidden;
     transition: height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
@@ -11,10 +11,10 @@
 }
 
 .anim-player.expanded {
-    position: fixed;
+    position: absolute;
     inset: 0;
-    z-index: 9999;
-    height: 100vh !important;
+    z-index: 5;
+    height: 100% !important;
     border-radius: 0;
 }
 
@@ -23,7 +23,7 @@
     align-items: center;
     justify-content: center;
     height: 100%;
-    color: #475569;
+    color: var(--text-secondary);
     font-size: 12px;
     font-family: 'JetBrains Mono', monospace;
 }
@@ -41,11 +41,11 @@
     align-items: center;
     gap: 6px;
     padding: 6px 12px;
-    background: #0a0a16;
+    background: transparent;
     flex-shrink: 0;
     height: 42px;
     box-sizing: border-box;
-    border-top: 1px solid #1c1c36;
+    border-top: 1px solid var(--border-light);
 }
 
 .anim-controls button {
@@ -56,15 +56,15 @@
     height: 28px;
     border: none;
     background: transparent;
-    color: #64748b;
+    color: var(--text-muted);
     border-radius: 6px;
     cursor: pointer;
     transition: background-color 0.2s, color 0.2s, transform 0.15s;
 }
 
 .anim-controls button:hover:not(:disabled) {
-    background: #1e1e3a;
-    color: #e2e8f0;
+    background: var(--bg-hover);
+    color: var(--text-primary);
     transform: scale(1.08);
 }
 
@@ -114,7 +114,7 @@
     height: 4px;
     -webkit-appearance: none;
     appearance: none;
-    background: #1e1e3a;
+    background: var(--bg-hover);
     border-radius: 2px;
     outline: none;
     cursor: pointer;
@@ -124,7 +124,7 @@
     -webkit-appearance: none;
     width: 12px;
     height: 12px;
-    background: #3b82f6;
+    background: var(--accent-blue);
     border-radius: 50%;
     cursor: pointer;
     box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
@@ -138,7 +138,7 @@
 
 .anim-step-label {
     font-size: 10px;
-    color: #475569;
+    color: var(--text-secondary);
     font-family: 'JetBrains Mono', monospace;
     min-width: 40px;
     text-align: right;

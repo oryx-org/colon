@@ -11,30 +11,11 @@ const { lintCode } = require('./services/linterService');
 const { detectBlocks, extToLanguage } = require('./services/blockDetectorUniversal');
 const { generateAnimation, loadAnimations, deleteAnimation: deleteAnim, clearAnimations } = require('./services/animationGenerator');
 const { isConfigured: isLlmConfigured, getConfig: getLlmConfig } = require('./services/llmService');
+const { getStatus, runGit } = require('./services/gitService');
+const debugService = require('./services/debugService');
 
-// Load .env file from backend directory
-(function loadEnv() {
-    const envPath = path.join(__dirname, '.env');
-    try {
-        if (fs.existsSync(envPath)) {
-            const lines = fs.readFileSync(envPath, 'utf-8').split('\n');
-            for (const line of lines) {
-                const trimmed = line.trim();
-                if (!trimmed || trimmed.startsWith('#')) continue;
-                const eqIdx = trimmed.indexOf('=');
-                if (eqIdx === -1) continue;
-                const key = trimmed.slice(0, eqIdx).trim();
-                const val = trimmed.slice(eqIdx + 1).trim();
-                if (key && !process.env[key]) {
-                    process.env[key] = val;
-                }
-            }
-            console.log('[main.js] .env loaded');
-        }
-    } catch (err) {
-        console.warn('[main.js] Could not load .env:', err.message);
-    }
-})();
+// Load environment variables via dotenv
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 let lastOpenedDir = os.homedir();
 
@@ -472,7 +453,36 @@ ipcMain.handle('animation:getLlmStatus', async () => {
     };
 });
 
+// Git Integration
+ipcMain.handle('git:status', async (event, cwd) => {
+    return await getStatus(cwd || lastOpenedDir);
+});
 
+ipcMain.handle('git:branch', async (event, cwd) => {
+    const res = await runGit('branch --show-current', cwd || lastOpenedDir);
+    return res.success ? res.stdout : null;
+});
+
+ipcMain.handle('git:run', async (event, cwd, command) => {
+    return await runGit(command, cwd || lastOpenedDir);
+});
+
+// Debugger IPC handers
+ipcMain.handle('debug:start', async (event, { filePath, language, options }) => {
+    return debugService.startSession(filePath, language, options);
+});
+
+ipcMain.handle('debug:stop', async (event, processId) => {
+    return debugService.stopSession(processId);
+});
+
+ipcMain.handle('debug:step', async (event, { sessionId, action }) => {
+    return debugService.sendStep(sessionId, action);
+});
+
+ipcMain.handle('debug:status', async (event, sessionId) => {
+    return debugService.getSessionStatus(sessionId);
+});
 
 const ptyProcesses = {};
 
