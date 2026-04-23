@@ -60,10 +60,10 @@
 }
 
 .status-error-icon {
-    color: var(--status-error);
+    color: var(--text-muted);
 }
 
 .status-warn-icon {
-    color: var(--status-warning);
+    color: var(--text-secondary);
     margin-left: 4px;
 }

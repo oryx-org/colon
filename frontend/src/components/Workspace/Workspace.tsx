@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Editor from '@monaco-editor/react';
 import { VscClose, VscPlay, VscDebugStop } from 'react-icons/vsc';
 import { OpenFile } from '../../App';
@@ -49,6 +49,48 @@ function Workspace({ openFiles, activeFilePath, setActiveFilePath, onCloseFile, 
     const decorationCollectionRef = useRef<any>(null);
     const blocksRef = useRef<any[]>([]);
     const [editorReady, setEditorReady] = useState(0);
+
+    const editorOptions = useMemo(() => ({
+        minimap: { enabled: settings?.minimap ?? false },
+        glyphMargin: true,
+        fontSize: settings?.fontSize || 14,
+        fontFamily: settings?.fontFamily || "'JetBrains Mono', monospace",
+        lineHeight: 22,
+        padding: { top: 16 },
+        scrollBeyondLastLine: false,
+        smoothScrolling: true,
+        cursorBlinking: 'smooth',
+        cursorSmoothCaretAnimation: 'on',
+        renderWhitespace: 'none',
+        readOnly: false,
+        automaticLayout: true,
+        contextmenu: true,
+        wordWrap: settings?.wordWrap || 'off',
+        tabSize: settings?.tabSize || 4,
+        bracketPairColorization: { enabled: true, independentColorPoolPerBracketType: true },
+        matchBrackets: "always",
+        autoClosingBrackets: "always",
+        autoClosingQuotes: "always",
+        formatOnPaste: true,
+        formatOnType: true,
+        folding: true,
+        foldingHighlight: true,
+        showFoldingControls: "always",
+        suggest: {
+            showKeywords: true,
+            showSnippets: true,
+            showClasses: true,
+            showFunctions: true,
+            showVariables: true,
+        },
+        parameterHints: { enabled: true },
+        snippetSuggestions: "top",
+        scrollbar: {
+            verticalScrollbarSize: 10,
+            horizontalScrollbarSize: 10,
+            useShadows: false,
+        }
+    }), [settings]);
 
     // Live Linter Effect — runs when active file content changes
     useEffect(() => {
@@ -192,20 +234,18 @@ function Workspace({ openFiles, activeFilePath, setActiveFilePath, onCloseFile, 
 
         monaco.editor.defineTheme('custom-black', {
             base: 'vs-dark',
-            inherit: true,
-            rules: [],
+            inherit: true, /* Pulls in all standard syntax highlighting (blue, green, yellow, etc) */
+            rules: [], /* Empty rules means it defaults entirely to standard vs-dark colors */
             colors: {
-                'editor.background': '#000000',
-                'editor.lineHighlightBackground': '#111111',
-                'editorGutter.background': '#000000',
-                'editorSuggestWidget.background': '#0A0A0A',
-                'editorSuggestWidget.border': '#2C2C2C',
-                'editor.selectionBackground': '#264F78',
-                'editor.inactiveSelectionBackground': '#3A3D41',
-                'editorWidget.background': '#0A0A0A',
-                'editorWidget.border': '#2C2C2C',
-                'input.background': '#111111',
-                'list.hoverBackground': '#1A1A1A'
+                'editor.background': '#1b1913', /* Core IDE background */
+                'editor.lineHighlightBackground': '#49433a',
+                'editorGutter.background': '#1b1913',
+                'editorSuggestWidget.background': '#1b1913',
+                'editorSuggestWidget.border': '#49433a',
+                'editorWidget.background': '#1b1913',
+                'editorWidget.border': '#49433a',
+                'input.background': '#1b1913',
+                'list.hoverBackground': '#49433a'
             }
         });
     };
@@ -348,55 +388,12 @@ function Workspace({ openFiles, activeFilePath, setActiveFilePath, onCloseFile, 
                     path={activeFile.path}
                     height="100%"
                     language={activeFile.language}
-                    theme="vs-dark"
+                    theme="custom-black"
                     value={activeFile.content}
                     onChange={handleEditorChange}
                     beforeMount={handleEditorWillMount}
                     onMount={handleEditorDidMount}
-                    options={{
-                        minimap: { enabled: settings?.minimap ?? false },
-                        glyphMargin: true,
-                        fontSize: settings?.fontSize || 14,
-                        fontFamily: settings?.fontFamily || "'JetBrains Mono', monospace",
-                        lineHeight: 22,
-                        padding: { top: 16 },
-                        scrollBeyondLastLine: false,
-                        smoothScrolling: true,
-                        cursorBlinking: 'smooth',
-                        cursorSmoothCaretAnimation: 'on',
-                        renderWhitespace: 'none',
-                        readOnly: false,
-                        automaticLayout: true,
-                        contextmenu: true,
-                        wordWrap: settings?.wordWrap || 'off',
-                        tabSize: settings?.tabSize || 4,
-
-                        // Advanced IDE Features
-                        bracketPairColorization: { enabled: true, independentColorPoolPerBracketType: true },
-                        matchBrackets: "always",
-                        autoClosingBrackets: "always",
-                        autoClosingQuotes: "always",
-                        formatOnPaste: true,
-                        formatOnType: true,
-                        folding: true,
-                        foldingHighlight: true,
-                        showFoldingControls: "always",
-                        suggest: {
-                            showKeywords: true,
-                            showSnippets: true,
-                            showClasses: true,
-                            showFunctions: true,
-                            showVariables: true,
-                        },
-                        parameterHints: { enabled: true },
-                        snippetSuggestions: "top",
-
-                        scrollbar: {
-                            verticalScrollbarSize: 10,
-                            horizontalScrollbarSize: 10,
-                            useShadows: false,
-                        }
-                    }}
+                    options={editorOptions}
                 />
             </div>
         </div>

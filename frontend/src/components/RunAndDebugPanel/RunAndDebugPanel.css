@@ -81,7 +81,7 @@
 
 .debug-btn.run {
     background-color: var(--accent-primary);
-    color: white;
+    color: var(--bg-primary); /* dark text on white */
     border: none;
 }
 
@@ -90,8 +90,8 @@
 }
 
 .debug-btn.stop {
-    background-color: var(--status-error);
-    color: white;
+    background-color: var(--text-muted);
+    color: var(--bg-primary);
     border: none;
 }
 
@@ -141,7 +141,7 @@
 
 .debug-status-pill {
     font-size: 10px;
-    color: var(--status-success);
+    color: var(--text-primary);
     font-weight: 600;
     text-transform: uppercase;
 }
@@ -165,11 +165,11 @@
 }
 
 .debug-section-header {
-    background-color: rgba(0, 0, 0, 0.2);
+    background-color: transparent;
     padding: 6px 16px;
     font-size: 10px;
     font-weight: 700;
-    color: var(--text-muted);
+    color: var(--text-secondary);
     letter-spacing: 0.05em;
 }
 
@@ -185,7 +185,7 @@
     max-height: 180px;
     overflow: auto;
     padding: 8px 10px;
-    background: rgba(0, 0, 0, 0.2);
+    background: transparent;
     border-top: 1px solid var(--border-color);
 }
 

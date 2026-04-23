@@ -37,12 +37,11 @@
 }
 
 .colon-logo {
-    color: var(--accent-blue);
+    color: #8a6616; /* Darker, solid gold */
     font-size: 18px;
     font-weight: bold;
     font-family: 'JetBrains Mono', monospace;
     letter-spacing: -1px;
-    filter: drop-shadow(0 0 4px rgba(59, 130, 246, 0.4));
 }
 
 .menu-items {
@@ -53,8 +52,10 @@
 
 .menu-item {
     color: var(--text-secondary);
-    padding: 0 10px;
-    height: 100%;
+    padding: 0 12px;
+    height: 26px; /* Floating height instead of 100% full stretch */
+    margin: 0 2px;
+    border-radius: 50px; /* Fully rounded pill shape */
     display: flex;
     align-items: center;
     cursor: pointer;
@@ -95,11 +96,13 @@
     transition: background-color 0.08s, color 0.08s;
     gap: 32px;
     white-space: nowrap;
+    border-radius: 6px;
+    margin: 2px 4px;
 }
 
 .menu-dropdown-item:hover {
-    background-color: var(--accent-blue);
-    color: white;
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
 }
 
 .menu-shortcut {
@@ -135,9 +138,10 @@
     letter-spacing: 0.2px;
 }
 
-/* ── Right (window controls) ── */
 .menu-right {
     display: flex;
+    align-items: center;
+    padding-right: 4px;
     height: 100%;
 }
 
@@ -145,8 +149,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 100%;
+    width: 32px;
+    height: 26px;
+    margin: 0 2px;
+    border-radius: 50px;
     color: var(--text-secondary);
     cursor: pointer;
     font-size: 14px;
@@ -159,6 +165,6 @@
 }
 
 .window-control-btn.close:hover {
-    background-color: #e81123;
-    color: white;
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
 }

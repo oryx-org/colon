@@ -216,7 +216,7 @@
 
 .primary-btn {
     background-color: var(--accent-blue);
-    color: white;
+    color: var(--bg-primary); /* dark text on white button */
     border: none;
     padding: 8px 20px;
     border-radius: var(--radius-sm);
@@ -227,7 +227,7 @@
 }
 
 .primary-btn:hover {
-    background-color: var(--accent-blue);
+    background-color: var(--accent-hover);
 }
 
 /* ── Context menu ── */
@@ -267,8 +267,8 @@
 }
 
 .context-item:hover {
-    background-color: var(--accent-blue);
-    color: white;
+    background-color: var(--bg-elevated);
+    color: var(--text-primary);
 }
 
 .context-item.danger:hover {

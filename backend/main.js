@@ -523,6 +523,16 @@ ipcMain.on('terminal-create', (event, payload) => {
     const cwd = (typeof payload === 'object' && payload.cwd) ? payload.cwd : lastOpenedDir;
     const shell = process.platform === 'win32' ? 'powershell.exe' : 'bash';
 
+    // Prevent zombie PTYs if frontend reconnects/remounts the same terminal ID
+    if (ptyProcesses[terminalId]) {
+        try {
+            ptyProcesses[terminalId].kill();
+        } catch (e) {
+            console.error('Failed to kill existing PTY:', e);
+        }
+        delete ptyProcesses[terminalId];
+    }
+
     const ptyProcess = pty.spawn(shell, [], {
         name: 'xterm-256color',
         cols: 80,

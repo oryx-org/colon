@@ -24,7 +24,7 @@
 .colon-logo-large {
     font-size: 80px;
     font-weight: 900;
-    color: var(--text-primary);
+    color: #8a6616; /* Darker, solid gold */
     font-family: 'JetBrains Mono', monospace;
     margin-bottom: 24px;
     user-select: none;

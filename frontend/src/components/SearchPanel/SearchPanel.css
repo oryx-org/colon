@@ -124,9 +124,9 @@
 }
 
 .search-option-btn.active {
-    background-color: rgba(59, 130, 246, 0.2);
-    border-color: var(--accent-blue);
-    color: var(--accent-blue);
+    background-color: rgba(255, 255, 255, 0.15);
+    border-color: var(--border-active);
+    color: var(--text-primary);
 }
 
 .replace-all-btn {
@@ -248,8 +248,8 @@
 }
 
 .search-highlight {
-    background-color: rgba(234, 179, 8, 0.3);
-    color: var(--status-warning);
+    background-color: rgba(255, 255, 255, 0.15);
+    color: var(--text-primary);
     border-radius: 2px;
     padding: 0 1px;
 }
