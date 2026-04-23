@@ -79,7 +79,6 @@ function App() {
 
   // Split sizes - persist across tab changes for VSCode-like behavior
   const [leftPanelSize, setLeftPanelSize] = useState(20);
-  const [editorAnimationSize, setEditorAnimationSize] = useState(70);
   const [terminalHeight, setTerminalHeight] = useState(38);
   // Mirror isRunning in a ref so keydown handler closure always reads fresh value
   const isRunningRef = useRef(false);
@@ -91,13 +90,25 @@ function App() {
   const activeFileRef = useRef<OpenFile | null>(null);
   activeFileRef.current = openFiles.find(f => f.path === activeFilePath) || null;
 
-  // LLM Animation system state
-  const [animations, setAnimations] = useState<AnimationRecord[]>([]);
+  // LLM Animation system state — keyed by file path to prevent cross-file collision
+  const [animsByFile, setAnimsByFile] = useState<Record<string, AnimationRecord[]>>({});
   const [isGenerating, setIsGenerating] = useState(false);
   const [llmConfigured, setLlmConfigured] = useState(false);
+  const [animError, setAnimError] = useState<string | null>(null);
+
+  // Manim video state — keyed by file path
+  const [manimVideosByFile, setManimVideosByFile] = useState<Record<string, any[]>>({});
+  const [isManimRendering, setIsManimRendering] = useState(false);
+  const [manimError, setManimError] = useState<string | null>(null);
+
+  // Derive current file's data
+  const animations = activeFilePath ? (animsByFile[activeFilePath] || []) : [];
+  const manimVideos = activeFilePath ? (manimVideosByFile[activeFilePath] || []) : [];
+  const activeFileLineCount = activeFilePath ? (openFiles.find(f => f.path === activeFilePath)?.content?.split('\n').length || 0) : 0;
   const [runtimeInstall, setRuntimeInstall] = useState<RuntimeInstallState>(INITIAL_INSTALL_STATE);
   const [cursorPos, setCursorPos] = useState({ line: 1, column: 1 });
   const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [animWidth, setAnimWidth] = useState(500);
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState(() => loadSettings());
 
@@ -253,14 +264,22 @@ function App() {
 
   // Load saved animations when active file changes
   useEffect(() => {
-    if (!activeFilePath) { setAnimations([]); return; }
+    if (!activeFilePath) return;
+    // If we already loaded animations for this file, skip the IPC call
+    if (animsByFile[activeFilePath]) return;
+
     const api = (window as any).electronAPI;
     if (!api?.animation?.loadAnimations) return;
 
     api.animation.loadAnimations(activeFilePath).then((result: any) => {
-      if (result.success) setAnimations(result.animations || []);
-      else setAnimations([]);
-    }).catch(() => setAnimations([]));
+      if (result.success) {
+        setAnimsByFile(prev => ({ ...prev, [activeFilePath]: result.animations || [] }));
+      } else {
+        setAnimsByFile(prev => ({ ...prev, [activeFilePath]: [] }));
+      }
+    }).catch(() => {
+      setAnimsByFile(prev => ({ ...prev, [activeFilePath]: [] }));
+    });
   }, [activeFilePath]);
 
   // Generate animation for a code block (called when user clicks gutter play icon)
@@ -273,15 +292,21 @@ function App() {
     if (file?.isDirty) await saveActiveFile();
 
     setIsGenerating(true);
+    setAnimError(null);
     setRightTab('video'); // Show animation panel
     try {
       const result = await api.animation.generateAnimation(filePath, code, language, blockInfo);
       if (result.success && result.record) {
-        setAnimations(prev => [...prev, result.record]);
+        setAnimsByFile(prev => ({
+          ...prev,
+          [filePath]: [...(prev[filePath] || []), result.record]
+        }));
       } else {
+        setAnimError(result.error || 'Animation generation failed');
         console.error('[App] Animation generation failed:', result.error);
       }
-    } catch (err) {
+    } catch (err: any) {
+      setAnimError(err.message || 'Unknown error');
       console.error('[App] Animation error:', err);
     } finally {
       setIsGenerating(false);
@@ -295,7 +320,10 @@ function App() {
     if (!api?.animation?.deleteAnimation || !file) return;
 
     await api.animation.deleteAnimation(file.path, animId);
-    setAnimations(prev => prev.filter(a => a.id !== animId));
+    setAnimsByFile(prev => ({
+      ...prev,
+      [file.path]: (prev[file.path] || []).filter(a => a.id !== animId)
+    }));
   }, []);
 
   // Clear all animations for the active file
@@ -305,7 +333,63 @@ function App() {
     if (!api?.animation?.clearAnimations || !file) return;
 
     await api.animation.clearAnimations(file.path);
-    setAnimations([]);
+    setAnimsByFile(prev => ({ ...prev, [file.path]: [] }));
+  }, []);
+
+  // Load Manim videos when active file changes
+  useEffect(() => {
+    if (!activeFilePath) return;
+    if (manimVideosByFile[activeFilePath]) return;
+
+    const api = (window as any).electronAPI;
+    if (!api?.manim?.loadVideos) return;
+
+    api.manim.loadVideos(activeFilePath).then((result: any) => {
+      if (result.success) {
+        setManimVideosByFile(prev => ({ ...prev, [activeFilePath]: result.videos || [] }));
+      }
+    }).catch(() => {});
+  }, [activeFilePath]);
+
+  // Generate Manim video for the active file
+  const handleGenerateManimVideo = useCallback(async () => {
+    const api = (window as any).electronAPI;
+    const file = activeFileRef.current;
+    if (!api?.manim?.generate || !file || isManimRendering) return;
+
+    if (file.isDirty) await saveActiveFile();
+
+    setIsManimRendering(true);
+    setManimError(null);
+    setRightTab('video');
+    try {
+      const result = await api.manim.generate(file.path, file.content, file.language);
+      if (result.success && result.record) {
+        setManimVideosByFile(prev => ({
+          ...prev,
+          [file.path]: [...(prev[file.path] || []), result.record]
+        }));
+      } else {
+        setManimError(result.error || 'Video generation failed');
+      }
+    } catch (err: any) {
+      setManimError(err.message || 'Unknown error');
+    } finally {
+      setIsManimRendering(false);
+    }
+  }, [isManimRendering]);
+
+  // Delete a Manim video
+  const handleDeleteManimVideo = useCallback(async (videoId: string) => {
+    const api = (window as any).electronAPI;
+    const file = activeFileRef.current;
+    if (!api?.manim?.deleteVideo || !file) return;
+
+    await api.manim.deleteVideo(file.path, videoId);
+    setManimVideosByFile(prev => ({
+      ...prev,
+      [file.path]: (prev[file.path] || []).filter((v: any) => v.id !== videoId)
+    }));
   }, []);
 
   const handleTerminalAction = (action: string) => {
@@ -645,19 +729,29 @@ function App() {
   const toggleTerminal = () => setShowTerminal(v => !v);
   const toggleMaximize = () => setIsTerminalMaximized(v => !v);
 
-  const workspaceTopContent = rightTab === 'video' ? (
-    <Split className="split split-horizontal" 
-      sizes={[editorAnimationSize, 100 - editorAnimationSize]} 
-      minSize={[280, 220]} 
-      gutterSize={2} 
-      snapOffset={20}
-      onDragEnd={(sizes: number[]) => {
-        // Keep editor pane dominant; avoid accidental near-zero width editor.
-        const clamped = Math.max(45, Math.min(85, sizes[0]));
-        setEditorAnimationSize(clamped);
-      }}
-    >
-      <div style={{ overflow: 'hidden', height: '100%' }}>
+  const handleAnimResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = animWidth;
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const delta = startX - moveEvent.clientX; // Leftward drag increases width
+      const newWidth = Math.max(300, Math.min(800, startWidth + delta));
+      setAnimWidth(newWidth);
+    };
+
+    const onMouseUp = () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  };
+
+  const workspaceTopContent = (
+    <div style={{ display: 'flex', width: '100%', height: '100%', overflow: 'hidden' }}>
+      <div style={{ flex: 1, minWidth: 0, height: '100%' }}>
         <Workspace
           openFiles={openFiles}
           activeFilePath={activeFilePath}
@@ -672,30 +766,48 @@ function App() {
           settings={settings}
         />
       </div>
-      <div className="animation-pane-host">
+      
+      {rightTab === 'video' && (
+        <div 
+          onMouseDown={handleAnimResize}
+          style={{
+            width: '4px',
+            backgroundColor: 'var(--bg-border)',
+            cursor: 'col-resize',
+            zIndex: 10,
+            transition: 'background-color 0.2s',
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--accent-blue)'}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-border)'}
+        />
+      )}
+
+      <div 
+        style={{ 
+          display: rightTab === 'video' ? 'block' : 'none', 
+          width: `${animWidth}px`,
+          height: '100%', 
+          backgroundColor: 'var(--bg-panel)',
+          overflow: 'hidden'
+        }}
+      >
         <AnimationTab
           animations={animations}
           isGenerating={isGenerating}
           onDeleteAnimation={handleDeleteAnimation}
           onClearAll={handleClearAnimations}
           llmConfigured={llmConfigured}
+          animError={animError}
+          activeFileName={activeFileRef.current?.name || ''}
+          manimVideos={manimVideos}
+          isManimRendering={isManimRendering}
+          manimError={manimError}
+          onGenerateManimVideo={handleGenerateManimVideo}
+          onDeleteManimVideo={handleDeleteManimVideo}
+          activeFileLineCount={activeFileLineCount}
         />
       </div>
-    </Split>
-  ) : (
-    <Workspace
-        openFiles={openFiles}
-        activeFilePath={activeFilePath}
-        setActiveFilePath={setActiveFilePath}
-        onCloseFile={handleCloseFile}
-        onFileChange={handleFileChange}
-        onRunFile={runActiveFile}
-        onStopRun={stopRunningCode}
-        isRunning={isRunning}
-        onGenerateAnimation={handleGenerateAnimation}
-        onCursorChange={(line, col) => setCursorPos({ line, column: col })}
-        settings={settings}
-    />
+    </div>
   );
 
   /**

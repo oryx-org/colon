@@ -11,6 +11,7 @@ const { lintCode } = require('./services/linterService');
 const { detectBlocks, extToLanguage } = require('./services/blockDetectorUniversal');
 const { generateAnimation, loadAnimations, deleteAnimation: deleteAnim, clearAnimations } = require('./services/animationGenerator');
 const { isConfigured: isLlmConfigured, getConfig: getLlmConfig } = require('./services/llmService');
+const { generateManimVideo, loadManimVideos, deleteManimVideo } = require('./services/manimService');
 const { getStatus, runGit } = require('./services/gitService');
 const debugService = require('./services/debugService');
 
@@ -454,6 +455,36 @@ ipcMain.handle('animation:getLlmStatus', async () => {
 });
 
 // Git Integration
+
+/* ── Manim Video IPC ── */
+
+ipcMain.handle('manim:generate', async (event, { filePath, code, language }) => {
+    try {
+        const record = await generateManimVideo(filePath, code, language);
+        return { success: true, record };
+    } catch (err) {
+        console.error('[main.js] Manim generation error:', err.message);
+        return { success: false, error: err.message };
+    }
+});
+
+ipcMain.handle('manim:loadVideos', async (event, filePath) => {
+    try {
+        const videos = loadManimVideos(filePath);
+        return { success: true, videos };
+    } catch (err) {
+        return { success: false, error: err.message, videos: [] };
+    }
+});
+
+ipcMain.handle('manim:delete', async (event, { filePath, videoId }) => {
+    try {
+        return { success: deleteManimVideo(filePath, videoId) };
+    } catch (err) {
+        return { success: false, error: err.message };
+    }
+});
+
 ipcMain.handle('git:status', async (event, cwd) => {
     return await getStatus(cwd || lastOpenedDir);
 });
@@ -548,6 +579,7 @@ function createWindow() {
             preload: path.join(__dirname, 'preload.js'),
             nodeIntegration: false,
             contextIsolation: true,
+            webSecurity: false,
         },
         backgroundColor: '#0a0e17',
         frame: false,
@@ -616,7 +648,9 @@ ipcMain.on('window-new', () => {
     createWindow();
 });
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+    createWindow();
+});
 
 app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit();

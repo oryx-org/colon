@@ -27,6 +27,23 @@
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.animation-file-badge {
+    font-size: 10px;
+    font-weight: 400;
+    color: var(--text-muted);
+    background: var(--bg-elevated);
+    padding: 1px 6px;
+    border-radius: 3px;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    letter-spacing: 0;
 }
 
 .animation-header-actions {
@@ -279,4 +296,165 @@
     font-family: 'JetBrains Mono', monospace;
     min-width: 40px;
     text-align: right;
+}
+
+/* Error card */
+.error-card {
+    border-color: var(--status-error) !important;
+    border-style: solid;
+}
+
+.error-indicator {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px;
+    color: var(--status-error);
+}
+
+.error-icon {
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.error-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.error-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--status-error);
+}
+
+.error-message {
+    font-size: 11px;
+    color: var(--text-muted);
+    word-break: break-word;
+    line-height: 1.4;
+}
+
+/* ── Manim Section ── */
+
+.manim-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.manim-section-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    padding: 4px 0;
+}
+
+.manim-generate-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px dashed var(--accent-blue);
+    background: rgba(59, 130, 246, 0.08);
+    color: var(--accent-blue);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: inherit;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.manim-generate-btn:hover:not(:disabled) {
+    background: rgba(59, 130, 246, 0.15);
+    border-color: var(--accent-blue);
+}
+
+.manim-generate-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    border-style: dashed;
+}
+
+.manim-line-warning {
+    font-size: 10px;
+    color: var(--status-warning, #f59e0b);
+    padding: 4px 8px;
+    background: rgba(245, 158, 11, 0.08);
+    border-radius: 4px;
+    text-align: center;
+}
+
+.manim-card {
+    border-color: var(--accent-blue) !important;
+}
+
+.manim-badge {
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--accent-blue);
+    background: rgba(59, 130, 246, 0.15);
+    padding: 1px 5px;
+    border-radius: 3px;
+    letter-spacing: 0.5px;
+}
+
+.manim-video-container {
+    padding: 4px;
+    background: #000;
+}
+
+.manim-video-player {
+    width: 100%;
+    max-height: 300px;
+    border-radius: 4px;
+    outline: none;
+}
+
+.manim-empty-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 8px;
+    opacity: 0.6;
+}
+
+/* Section divider */
+.section-divider {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 0 4px;
+}
+
+.section-divider::before,
+.section-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border-light);
+}
+
+.section-divider-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+/* Spin icon for loading */
+.spin-icon {
+    animation: spin 1s linear infinite;
 }

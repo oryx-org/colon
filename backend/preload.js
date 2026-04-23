@@ -76,4 +76,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
         clearAnimations: (filePath) => ipcRenderer.invoke('animation:clearAnimations', filePath),
         getLlmStatus: () => ipcRenderer.invoke('animation:getLlmStatus'),
     },
+
+    // Manim Video System
+    manim: {
+        generate: (filePath, code, language) =>
+            ipcRenderer.invoke('manim:generate', { filePath, code, language }),
+        loadVideos: (filePath) => ipcRenderer.invoke('manim:loadVideos', filePath),
+        deleteVideo: (filePath, videoId) =>
+            ipcRenderer.invoke('manim:delete', { filePath, videoId }),
+    },
 });

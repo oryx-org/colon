@@ -194,25 +194,59 @@ function clearAnimations(filePath) {
 }
 
 /**
+ * Parse retry-after seconds from a Groq/OpenAI rate limit error message.
+ */
+function parseRetryAfter(message) {
+    const m = message.match(/try again in ([\d.]+)s/i);
+    return m ? Math.ceil(parseFloat(m[1])) + 1 : 10;
+}
+
+/**
  * Extract JSON from LLM response that may contain markdown fences.
  */
 function extractJSON(text) {
+    // Log first 500 chars for debugging
+    console.log('[animationGenerator] Raw LLM response (first 500 chars):', text?.slice(0, 500));
+
+    if (!text || typeof text !== 'string') {
+        throw new Error('Empty LLM response');
+    }
+
+    // Strip control characters that break JSON.parse
+    let cleaned = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+
     // Try raw parse first
-    try { return JSON.parse(text); } catch { /* continue */ }
+    try { return JSON.parse(cleaned); } catch { /* continue */ }
 
     // Strip markdown fences
-    const fenceMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+    const fenceMatch = cleaned.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
     if (fenceMatch) {
         try { return JSON.parse(fenceMatch[1]); } catch { /* continue */ }
     }
 
     // Try to find JSON object boundaries
-    const start = text.indexOf('{');
-    const end = text.lastIndexOf('}');
+    const start = cleaned.indexOf('{');
+    const end = cleaned.lastIndexOf('}');
     if (start !== -1 && end > start) {
-        try { return JSON.parse(text.slice(start, end + 1)); } catch { /* fail */ }
+        const slice = cleaned.slice(start, end + 1);
+        try { return JSON.parse(slice); } catch (e) {
+            // If truncated (missing closing brackets), try to fix
+            let fixed = slice;
+            // Count open/close braces
+            const openBraces = (fixed.match(/{/g) || []).length;
+            const closeBraces = (fixed.match(/}/g) || []).length;
+            const openBrackets = (fixed.match(/\[/g) || []).length;
+            const closeBrackets = (fixed.match(/\]/g) || []).length;
+
+            // Attempt to close unclosed structures
+            for (let i = 0; i < openBrackets - closeBrackets; i++) fixed += ']';
+            for (let i = 0; i < openBraces - closeBraces; i++) fixed += '}';
+
+            try { return JSON.parse(fixed); } catch { /* final fail */ }
+        }
     }
 
+    console.error('[animationGenerator] Full unparseable response:', text);
     throw new Error('Could not parse animation JSON from LLM response');
 }
 
@@ -286,6 +320,7 @@ Generate the step-by-step animation JSON for this code. Show how each line execu
             rawResponse = await chatCompletion(SYSTEM_PROMPT, userPrompt, {
                 temperature: retries === 0 ? 0.3 : 0.1,
                 maxTokens: 4096,
+                forceJson: true,
             });
 
             const animationData = extractJSON(rawResponse);
@@ -298,11 +333,24 @@ Generate the step-by-step animation JSON for this code. Show how each line execu
 
         } catch (err) {
             retries++;
+            const isRateLimit = err.message && (
+                err.message.includes('Rate limit') ||
+                err.message.includes('rate_limit') ||
+                err.message.includes('429')
+            );
+
             if (retries > MAX_RETRIES) {
                 console.error('[animationGenerator] Failed after retries:', err.message);
                 throw new Error(`Animation generation failed: ${err.message}`);
             }
-            console.warn(`[animationGenerator] Retry ${retries}: ${err.message}`);
+
+            if (isRateLimit) {
+                const waitSec = parseRetryAfter(err.message);
+                console.warn(`[animationGenerator] Rate limited. Waiting ${waitSec}s before retry ${retries}...`);
+                await new Promise(r => setTimeout(r, waitSec * 1000));
+            } else {
+                console.warn(`[animationGenerator] Retry ${retries}: ${err.message}`);
+            }
         }
     }
 }

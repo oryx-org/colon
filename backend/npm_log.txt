@@ -30,3 +30,4 @@
 [1] [main.js] Scan complete: python: ✓, node: ✓, typescript: ✗, gcc: ✓, gpp: ✓, java: ✓, go: ✗, rust: ✗, ruby: ✓, php: ✗
 [1] [main.js] Scan complete: python: ✓, node: ✓, typescript: ✗, gcc: ✓, gpp: ✓, java: ✓, go: ✗, rust: ✗, ruby: ✓, php: ✗
 [1] wait-on http://localhost:5173 && electron . --no-sandbox exited with code 0
+[0] cd ../frontend && npm run dev exited with code SIGTERM

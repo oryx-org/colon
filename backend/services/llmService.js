@@ -46,6 +46,7 @@ async function chatCompletion(systemPrompt, userPrompt, opts = {}) {
     const { provider, apiKey, model } = getConfig();
     const temperature = opts.temperature ?? 0.3;
     const maxTokens = opts.maxTokens ?? 4096;
+    const forceJson = opts.forceJson ?? false;
 
     if (!isConfigured()) {
         throw new Error('LLM not configured. Set LLM_API_KEY in backend/.env');
@@ -59,7 +60,7 @@ async function chatCompletion(systemPrompt, userPrompt, opts = {}) {
         case 'gemini':
             return callGemini(apiKey, model, systemPrompt, userPrompt, temperature, maxTokens);
         case 'groq':
-            return callGroq(apiKey, model, systemPrompt, userPrompt, temperature, maxTokens);
+            return callGroq(apiKey, model, systemPrompt, userPrompt, temperature, maxTokens, forceJson);
         default:
             throw new Error(`Unknown LLM provider: "${provider}". Use openai, anthropic, gemini, or groq.`);
     }
@@ -155,8 +156,8 @@ function callAnthropic(apiKey, model, system, user, temperature, maxTokens) {
 }
 
 /* ── Groq (OpenAI-compatible) ── */
-function callGroq(apiKey, model, system, user, temperature, maxTokens) {
-    const body = JSON.stringify({
+function callGroq(apiKey, model, system, user, temperature, maxTokens, forceJson) {
+    const payload = {
         model,
         messages: [
             { role: 'system', content: system },
@@ -164,7 +165,13 @@ function callGroq(apiKey, model, system, user, temperature, maxTokens) {
         ],
         temperature,
         max_tokens: maxTokens,
-    });
+    };
+
+    if (forceJson) {
+        payload.response_format = { type: 'json_object' };
+    }
+
+    const body = JSON.stringify(payload);
 
     return new Promise((resolve, reject) => {
         const req = https.request({
