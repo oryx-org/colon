@@ -10,12 +10,268 @@
     border-radius: 6px;
 }
 
-.anim-player.expanded {
+/* ═══ Focus Mode ═══ */
+
+.anim-player-inner {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+}
+
+.anim-player.focused {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0;
+    height: 100vh !important;
+    width: 100vw !important;
+}
+
+.anim-player.focused .anim-player-inner {
+    flex-direction: row;
+    width: 80vw;
+    height: 75vh;
+    max-width: 1200px;
+    max-height: 800px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-strong);
+    border-radius: 12px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+    position: relative;
+    overflow: hidden;
+    z-index: 10;
+}
+
+/* Blurred backdrop */
+.anim-focus-backdrop {
     position: absolute;
     inset: 0;
-    z-index: 5;
-    height: 100% !important;
-    border-radius: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    z-index: 1;
+}
+
+/* ── Z-Index Stacking Fixes ── */
+/* When focused, elevate all parent containers so the modal overlays the Terminal and Split gutters */
+.split:has(.anim-player.focused) > div:has(.anim-player.focused) {
+    position: relative !important;
+    z-index: 99999 !important;
+}
+
+.split-center-area:has(.anim-player.focused) {
+    position: relative !important;
+    z-index: 99999 !important;
+}
+
+.animation-tab:has(.anim-player.focused),
+.animation-card:has(.anim-player.focused) {
+    position: relative !important;
+    z-index: 99999 !important;
+    overflow: visible !important;
+}
+
+/* Close button */
+.anim-focus-close {
+    position: absolute;
+    top: 14px;
+    right: 18px;
+    z-index: 10;
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--border-light);
+    background: var(--bg-panel);
+    color: var(--text-secondary);
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+.anim-focus-close:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    border-color: var(--border-strong);
+}
+
+/* ── Left Panel: Explanations ── */
+
+.anim-focus-left {
+    width: 380px;
+    min-width: 380px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-panel);
+    border-right: 1px solid var(--border-light);
+    overflow: hidden;
+}
+
+.anim-focus-left-header {
+    padding: 18px 20px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border-light);
+    flex-shrink: 0;
+}
+
+.anim-focus-left-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-family: var(--font-family);
+    letter-spacing: 0.3px;
+}
+
+.anim-focus-left-count {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.anim-focus-steps {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 12px 20px;
+}
+
+.anim-focus-steps::-webkit-scrollbar { width: 5px; }
+.anim-focus-steps::-webkit-scrollbar-track { background: transparent; }
+.anim-focus-steps::-webkit-scrollbar-thumb {
+    background: var(--bg-hover);
+    border-radius: 4px;
+}
+
+/* ── Step Card ── */
+
+.anim-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 14px;
+    margin-bottom: 6px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.anim-step:hover {
+    background: var(--bg-hover);
+}
+
+.anim-step.completed {
+    opacity: 0.6;
+}
+
+.anim-step.active {
+    background: var(--bg-elevated);
+    border-color: var(--accent-blue);
+    opacity: 1;
+}
+
+.anim-step-num {
+    width: 26px;
+    height: 26px;
+    min-width: 26px;
+    border-radius: 50%;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-strong);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    margin-top: 1px;
+}
+
+.anim-step.active .anim-step-num {
+    background: var(--accent-blue);
+    border-color: var(--accent-blue);
+    color: var(--bg-primary);
+}
+
+.anim-step.completed .anim-step-num {
+    background: var(--bg-elevated);
+    border-color: var(--border-active);
+    color: var(--status-success);
+}
+
+.anim-step-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.anim-step-text {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+    margin: 0;
+    font-family: var(--font-family);
+}
+
+.anim-step.active .anim-step-text {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.anim-step-tag {
+    display: inline-block;
+    font-size: 10px;
+    color: var(--text-muted);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-light);
+    border-radius: 4px;
+    padding: 1px 6px;
+    margin-top: 6px;
+    margin-right: 4px;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.anim-step-indicator {
+    color: var(--accent-blue);
+    font-size: 10px;
+    margin-top: 4px;
+    animation: stepPulse 1.5s ease-in-out infinite;
+}
+
+.anim-step-check {
+    color: var(--status-success);
+    font-size: 12px;
+    font-weight: 700;
+    margin-top: 4px;
+}
+
+@keyframes stepPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+
+/* ── Right Panel: Canvas ── */
+
+.anim-focus-right {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.anim-player:not(.focused) .anim-focus-right {
+    /* In normal mode, right panel is the full player */
+    width: 100%;
+    height: 100%;
 }
 
 .anim-player-empty {
@@ -56,7 +312,7 @@
     height: 28px;
     border: none;
     background: transparent;
-    color: var(--text-muted);
+    color: var(--text-secondary);
     border-radius: 6px;
     cursor: pointer;
     transition: background-color 0.2s, color 0.2s, transform 0.15s;
@@ -78,13 +334,13 @@
 }
 
 .anim-play-btn {
-    background: rgba(59, 130, 246, 0.12) !important;
-    color: #3b82f6 !important;
+    background: var(--bg-elevated) !important;
+    color: var(--accent-blue) !important;
 }
 
 .anim-play-btn:hover:not(:disabled) {
-    background: rgba(59, 130, 246, 0.25) !important;
-    color: #60a5fa !important;
+    background: var(--bg-hover) !important;
+    color: var(--accent-hover) !important;
 }
 
 .anim-scrubber-track {
@@ -101,7 +357,7 @@
     top: 50%;
     transform: translateY(-50%);
     height: 4px;
-    background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+    background: var(--accent-blue);
     border-radius: 2px;
     pointer-events: none;
     transition: width 0.25s ease;
@@ -114,7 +370,7 @@
     height: 4px;
     -webkit-appearance: none;
     appearance: none;
-    background: var(--bg-hover);
+    background: var(--bg-elevated);
     border-radius: 2px;
     outline: none;
     cursor: pointer;
@@ -124,16 +380,16 @@
     -webkit-appearance: none;
     width: 12px;
     height: 12px;
-    background: var(--accent-blue);
+    background: var(--accent-primary);
     border-radius: 50%;
     cursor: pointer;
-    box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
+    box-shadow: 0 0 8px rgba(0, 0, 0, 0.4);
     transition: transform 0.15s, box-shadow 0.15s;
 }
 
 .anim-scrubber::-webkit-slider-thumb:hover {
     transform: scale(1.3);
-    box-shadow: 0 0 14px rgba(59, 130, 246, 0.6);
+    box-shadow: 0 0 14px var(--accent-blue);
 }
 
 .anim-step-label {

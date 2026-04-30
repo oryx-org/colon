@@ -1,5 +1,6 @@
+import { LuX } from 'react-icons/lu';
 import { useEffect, useState } from 'react';
-import { VscClose } from 'react-icons/vsc';
+
 import './SettingsModal.css';
 
 interface Settings {
@@ -54,7 +55,7 @@ function SettingsModal({ isOpen, onClose, onSettingsChange }: SettingsModalProps
             <div className="settings-modal" onClick={e => e.stopPropagation()}>
                 <div className="settings-header">
                     <h3>Settings</h3>
-                    <button className="settings-close" onClick={onClose}><VscClose size={16} /></button>
+                    <button className="settings-close" onClick={onClose}><LuX size={16} /></button>
                 </div>
                 <div className="settings-body">
                     <div className="setting-group">

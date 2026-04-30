@@ -1,5 +1,6 @@
+import { LuSearch, LuChevronDown, LuChevronRight, LuReplace } from 'react-icons/lu';
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { VscSearch, VscChevronDown, VscChevronRight, VscReplaceAll } from 'react-icons/vsc';
+
 import FileIcon from '../FileIcon/FileIcon';
 import './SearchPanel.css';
 
@@ -131,10 +132,10 @@ function SearchPanel({ onFileClick }: SearchPanelProps) {
                         onClick={() => setShowReplace(!showReplace)}
                         title={showReplace ? 'Hide Replace' : 'Show Replace'}
                     >
-                        {showReplace ? <VscChevronDown size={14} /> : <VscChevronRight size={14} />}
+                        {showReplace ? <LuChevronDown size={14} /> : <LuChevronRight size={14} />}
                     </button>
                     <div className="search-input-wrapper">
-                        <VscSearch size={14} className="search-input-icon" />
+                        <LuSearch size={14} className="search-input-icon" />
                         <input
                             ref={inputRef}
                             className="search-input"
@@ -178,7 +179,7 @@ function SearchPanel({ onFileClick }: SearchPanelProps) {
                                 onClick={handleReplaceAll}
                                 title="Replace All"
                             >
-                                <VscReplaceAll size={14} />
+                                <LuReplace size={14} />
                             </button>
                         </div>
                     </div>
@@ -201,8 +202,8 @@ function SearchPanel({ onFileClick }: SearchPanelProps) {
                             onClick={() => toggleFile(group.filePath)}
                         >
                             {expandedFiles.has(group.filePath)
-                                ? <VscChevronDown size={14} />
-                                : <VscChevronRight size={14} />
+                                ? <LuChevronDown size={14} />
+                                : <LuChevronRight size={14} />
                             }
                             <FileIcon fileName={group.fileName} size={14} />
                             <span className="search-file-name">{group.fileName}</span>

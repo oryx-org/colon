@@ -1,4 +1,5 @@
-import { VscSourceControl, VscBell, VscError, VscWarning } from 'react-icons/vsc';
+import { LuGitBranch, LuBell, LuCircleX, LuTriangleAlert } from 'react-icons/lu';
+
 import './StatusBar.css';
 
 interface StatusBarProps {
@@ -55,13 +56,13 @@ function StatusBar({
         <div className="status-bar">
             <div className="status-left">
                 <div className="status-item branch">
-                    <VscSourceControl size={13} />
+                    <LuGitBranch size={13} />
                     <span>main</span>
                 </div>
                 <div className="status-item">
-                    <VscError size={13} className="status-error-icon" />
+                    <LuCircleX size={13} className="status-error-icon" />
                     <span>0</span>
-                    <VscWarning size={13} className="status-warn-icon" />
+                    <LuTriangleAlert size={13} className="status-warn-icon" />
                     <span>0</span>
                 </div>
             </div>
@@ -83,7 +84,7 @@ function StatusBar({
                     {displayLang}
                 </div>
                 <div className="status-item">
-                    <VscBell size={13} />
+                    <LuBell size={13} />
                 </div>
             </div>
         </div>

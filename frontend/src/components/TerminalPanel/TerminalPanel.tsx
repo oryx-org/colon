@@ -1,8 +1,5 @@
+import { LuX, LuChevronDown, LuTrash2, LuPlus, LuTerminal, LuChevronUp, LuColumns2 } from 'react-icons/lu';
 import { useState, useCallback, useImperativeHandle, forwardRef, useEffect, useRef } from 'react';
-import {
-    VscClose, VscChevronUp, VscChevronDown,
-    VscTrash, VscAdd, VscSplitHorizontal, VscTerminal
-} from 'react-icons/vsc';
 import Split from 'react-split';
 import XTermView from './XTermView';
 import './TerminalPanel.css';
@@ -168,7 +165,7 @@ const TerminalPanel = forwardRef<TerminalPanelRef, TerminalPanelProps>(({ onClos
             <div className="terminal-sidebar-header">
                 <span>TERMINALS</span>
                 <button className="sidebar-add-btn" title="New Terminal" onClick={createTerminal}>
-                    <VscAdd />
+                    <LuPlus />
                 </button>
             </div>
 
@@ -185,7 +182,7 @@ const TerminalPanel = forwardRef<TerminalPanelRef, TerminalPanelProps>(({ onClos
                                 onClick={() => selectGroup(group.id, tid)}
                                 onDoubleClick={() => { setEditingId(tid); setEditingName(entry.name); }}
                             >
-                                <VscTerminal className="term-item-icon" />
+                                <LuTerminal className="term-item-icon" />
                                 {editingId === tid ? (
                                     <input
                                         autoFocus
@@ -207,7 +204,7 @@ const TerminalPanel = forwardRef<TerminalPanelRef, TerminalPanelProps>(({ onClos
                                     onClick={e => killTerminal(tid, e)}
                                     title="Kill terminal"
                                 >
-                                    <VscTrash />
+                                    <LuTrash2 />
                                 </button>
                             </div>
                         );
@@ -236,13 +233,13 @@ const TerminalPanel = forwardRef<TerminalPanelRef, TerminalPanelProps>(({ onClos
 
                 <div className="terminal-actions">
                     <button className="terminal-action-btn" title="New Terminal (Ctrl+`)" onClick={createTerminal}>
-                        <VscAdd />
+                        <LuPlus />
                     </button>
                     <button className="terminal-action-btn" title="Split Terminal" onClick={splitTerminal}>
-                        <VscSplitHorizontal />
+                        <LuColumns2 />
                     </button>
                     <button className="terminal-action-btn" title="Kill Terminal" onClick={killActiveTerminal}>
-                        <VscTrash />
+                        <LuTrash2 />
                     </button>
                     <div className="action-divider" />
                     <button
@@ -250,10 +247,10 @@ const TerminalPanel = forwardRef<TerminalPanelRef, TerminalPanelProps>(({ onClos
                         title={isMaximized ? 'Restore Panel' : 'Maximize Panel'}
                         onClick={onMaximize}
                     >
-                        {isMaximized ? <VscChevronDown /> : <VscChevronUp />}
+                        {isMaximized ? <LuChevronDown /> : <LuChevronUp />}
                     </button>
                     <button className="terminal-action-btn" title="Close Panel" onClick={onClose}>
-                        <VscClose />
+                        <LuX />
                     </button>
                 </div>
             </div>
@@ -314,7 +311,7 @@ const TerminalPanel = forwardRef<TerminalPanelRef, TerminalPanelProps>(({ onClos
                     <div className="terminal-body">
                         {activeTab === 'terminal' && entries.length === 0 ? (
                             <div className="terminal-empty-state">
-                                <VscTerminal size={32} style={{ marginBottom: 8, opacity: 0.4 }} />
+                                <LuTerminal size={32} style={{ marginBottom: 8, opacity: 0.4 }} />
                                 <p>No active terminals — click <strong>+</strong> to create one</p>
                             </div>
                         ) : (

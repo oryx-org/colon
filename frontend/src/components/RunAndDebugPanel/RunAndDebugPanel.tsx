@@ -1,5 +1,6 @@
+import { LuPlay, LuBug, LuSquare, LuStepForward, LuArrowDownToLine, LuArrowUpFromLine, LuRotateCcw } from 'react-icons/lu';
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { VscPlay, VscDebugAlt, VscStopCircle, VscDebugStepOver, VscDebugStepInto, VscDebugStepOut, VscDebugRestart } from 'react-icons/vsc';
+
 import './RunAndDebugPanel.css';
 
 interface RunAndDebugPanelProps {
@@ -176,29 +177,29 @@ export default function RunAndDebugPanel({ activeFileName, activeFilePath, activ
                             {!isRunning && !isDebugging ? (
                                 <>
                                     <button className="debug-btn run" onClick={onRunFile}>
-                                        <VscPlay /> Run Code
+                                        <LuPlay /> Run Code
                                     </button>
                                     <button className="debug-btn debug-mode" onClick={handleStartDebug}>
-                                        <VscDebugAlt /> Start Debugging
+                                        <LuBug /> Start Debugging
                                     </button>
                                 </>
                             ) : null}
 
                             {isRunning && !isDebugging ? (
                                 <button className="debug-btn stop" onClick={onStopRun}>
-                                    <VscStopCircle /> Stop Code
+                                    <LuSquare /> Stop Code
                                 </button>
                             ) : null}
 
                             {isDebugging ? (
                                 <div className="debug-active-controls">
                                     <div className="debug-control-group">
-                                        <button className="debug-btn-icon" title="Continue" onClick={() => handleStep('continue')}><VscPlay /></button>
-                                        <button className="debug-btn-icon" title="Step Over" onClick={() => handleStep('stepOver')}><VscDebugStepOver /></button>
-                                        <button className="debug-btn-icon" title="Step Into" onClick={() => handleStep('stepInto')}><VscDebugStepInto /></button>
-                                        <button className="debug-btn-icon" title="Step Out" onClick={() => handleStep('stepOut')}><VscDebugStepOut /></button>
-                                        <button className="debug-btn-icon" title="Pause" onClick={() => handleStep('pause')}><VscDebugRestart /></button>
-                                        <button className="debug-btn-icon stop" title="Stop" onClick={handleStopDebug}><VscStopCircle /></button>
+                                        <button className="debug-btn-icon" title="Continue" onClick={() => handleStep('continue')}><LuPlay /></button>
+                                        <button className="debug-btn-icon" title="Step Over" onClick={() => handleStep('stepOver')}><LuStepForward /></button>
+                                        <button className="debug-btn-icon" title="Step Into" onClick={() => handleStep('stepInto')}><LuArrowDownToLine /></button>
+                                        <button className="debug-btn-icon" title="Step Out" onClick={() => handleStep('stepOut')}><LuArrowUpFromLine /></button>
+                                        <button className="debug-btn-icon" title="Pause" onClick={() => handleStep('pause')}><LuRotateCcw /></button>
+                                        <button className="debug-btn-icon stop" title="Stop" onClick={handleStopDebug}><LuSquare /></button>
                                     </div>
                                     <div className="debug-status-pill">● {debugState}</div>
                                 </div>

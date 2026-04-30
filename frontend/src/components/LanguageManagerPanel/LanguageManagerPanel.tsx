@@ -1,5 +1,6 @@
+import { LuRefreshCw, LuCloudDownload, LuCheck, LuCircleX } from 'react-icons/lu';
 import { useState, useEffect } from 'react';
-import { VscRefresh, VscCloudDownload, VscCheck, VscError } from 'react-icons/vsc';
+
 import './LanguageManagerPanel.css';
 
 interface RuntimeEnvironment {
@@ -111,7 +112,7 @@ export default function LanguageManagerPanel() {
             <div className="lm-header">
                 <span className="lm-title">EXTENSIONS (LANGUAGES)</span>
                 <button className="lm-refresh-btn" onClick={scanEnvironments} title="Scan for Runtimes" disabled={isLoading}>
-                    <VscRefresh className={isLoading ? 'spinning' : ''} />
+                    <LuRefreshCw className={isLoading ? 'spinning' : ''} />
                 </button>
             </div>
             
@@ -125,7 +126,7 @@ export default function LanguageManagerPanel() {
                             <div className="lm-card-header">
                                 <h3 className="lm-card-title">{env.name}</h3>
                                 {env.installed ? (
-                                    <span className="lm-badge success"><VscCheck /> Installed</span>
+                                    <span className="lm-badge success"><LuCheck /> Installed</span>
                                 ) : (
                                     <span className="lm-badge missing">Missing</span>
                                 )}
@@ -145,7 +146,7 @@ export default function LanguageManagerPanel() {
                                 
                                 {progress?.status === 'failed' && (
                                     <div className="lm-error">
-                                        <VscError /> {progress.error}
+                                        <LuCircleX /> {progress.error}
                                     </div>
                                 )}
                             </div>
@@ -157,7 +158,7 @@ export default function LanguageManagerPanel() {
                                         onClick={() => handleInstall(env.id)}
                                         disabled={isInstalling}
                                     >
-                                        <VscCloudDownload /> {isInstalling ? 'Installing...' : 'Install via System'}
+                                        <LuCloudDownload /> {isInstalling ? 'Installing...' : 'Install via System'}
                                     </button>
                                 )}
                             </div>

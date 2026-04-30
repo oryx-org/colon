@@ -13,7 +13,7 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const DEFAULT_MODELS = {
     openai: 'gpt-4o',
     anthropic: 'claude-sonnet-4-20250514',
-    gemini: 'gemini-2.0-flash',
+    gemini: 'gemini-2.5-pro',
     groq: 'llama-3.3-70b-versatile',
 };
 
@@ -104,7 +104,7 @@ function callOpenAI(apiKey, model, system, user, temperature, maxTokens) {
             });
         });
         req.on('error', reject);
-        req.setTimeout(60000, () => { req.destroy(); reject(new Error('OpenAI request timeout')); });
+        req.setTimeout(120000, () => { req.destroy(); reject(new Error('Request timeout')); });
         req.write(body);
         req.end();
     });
@@ -149,7 +149,7 @@ function callAnthropic(apiKey, model, system, user, temperature, maxTokens) {
             });
         });
         req.on('error', reject);
-        req.setTimeout(60000, () => { req.destroy(); reject(new Error('Anthropic request timeout')); });
+        req.setTimeout(120000, () => { req.destroy(); reject(new Error('Request timeout')); });
         req.write(body);
         req.end();
     });
@@ -199,7 +199,7 @@ function callGroq(apiKey, model, system, user, temperature, maxTokens, forceJson
             });
         });
         req.on('error', reject);
-        req.setTimeout(60000, () => { req.destroy(); reject(new Error('Groq request timeout')); });
+        req.setTimeout(120000, () => { req.destroy(); reject(new Error('Request timeout')); });
         req.write(body);
         req.end();
     });
@@ -208,12 +208,22 @@ function callGroq(apiKey, model, system, user, temperature, maxTokens, forceJson
 /* ── Google Gemini ── */
 async function callGemini(apiKey, model, system, user, temperature, maxTokens) {
     const genAI = new GoogleGenerativeAI(apiKey);
+    const genConfig = { temperature, maxOutputTokens: maxTokens };
+
     const genModel = genAI.getGenerativeModel({
         model,
         systemInstruction: system,
-        generationConfig: { temperature, maxOutputTokens: maxTokens },
+        generationConfig: genConfig,
     });
-    const result = await genModel.generateContent(user);
+
+    // Wrap in a timeout — Gemini SDK has no built-in timeout
+    const timeoutMs = 120000;
+    const resultPromise = genModel.generateContent(user);
+    const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Gemini request timeout (120s)')), timeoutMs)
+    );
+
+    const result = await Promise.race([resultPromise, timeoutPromise]);
     const text = result.response.text();
     if (!text) throw new Error('Gemini: empty response');
     return text;

@@ -1,5 +1,6 @@
+import { LuRefreshCw, LuBook, LuCheck, LuPlus, LuRotateCcw, LuGitCommitHorizontal, LuGitBranch } from 'react-icons/lu';
 import { useState, useCallback, useEffect } from 'react';
-import { VscRefresh, VscRepo, VscCheck, VscAdd, VscDiscard, VscGitCommit, VscSourceControl } from 'react-icons/vsc';
+
 import './SourceControlPanel.css';
 
 interface GitStatus {
@@ -108,13 +109,13 @@ export default function SourceControlPanel({ onFileClick }: SourceControlPanelPr
                 <span className="sc-title">SOURCE CONTROL</span>
                 <div className="sc-header-actions">
                     <button className="sc-action-btn" onClick={loadStatus} title="Refresh">
-                        <VscRefresh className={isLoading ? 'spinning' : ''} />
+                        <LuRefreshCw className={isLoading ? 'spinning' : ''} />
                     </button>
                 </div>
             </div>
 
             <div className="sc-branch-info">
-                <VscSourceControl />
+                <LuGitBranch />
                 <span>{branch || 'main'}</span>
             </div>
 
@@ -133,7 +134,7 @@ export default function SourceControlPanel({ onFileClick }: SourceControlPanelPr
                     disabled={isLoading || !commitMessage.trim() || files.length === 0}
                     title="Commit (All files)"
                 >
-                    <VscGitCommit /> Commit
+                    <LuGitCommitHorizontal /> Commit
                 </button>
             </div>
 
@@ -160,10 +161,10 @@ export default function SourceControlPanel({ onFileClick }: SourceControlPanelPr
                                 </div>
                                 <div className="sc-file-actions">
                                     <button title="Stage File" onClick={() => handleStage(item.file)}>
-                                        <VscAdd />
+                                        <LuPlus />
                                     </button>
                                     <button title="Discard Changes" onClick={() => handleDiscard(item.file)}>
-                                        <VscDiscard />
+                                        <LuRotateCcw />
                                     </button>
                                 </div>
                             </div>

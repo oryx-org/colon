@@ -1,5 +1,7 @@
 import { LuTrash2, LuCode, LuSparkles, LuCircleAlert, LuFilm, LuLoader } from 'react-icons/lu';
-import { VscTrash } from 'react-icons/vsc';
+import { useState, useEffect } from 'react';
+
+
 import AnimationPlayer, { AnimationData } from './AnimationPlayer';
 import './AnimationTab.css';
 
@@ -33,6 +35,8 @@ interface AnimationTabProps {
     manimError?: string | null;
     onGenerateManimVideo?: () => void;
     onDeleteManimVideo?: (videoId: string) => void;
+    onCancelAnimation?: () => void;
+    onCancelManimVideo?: () => void;
     activeFileLineCount?: number;
 }
 
@@ -41,9 +45,39 @@ const MAX_MANIM_LINES = 200;
 function AnimationTab({
     animations, isGenerating, onDeleteAnimation, onClearAll, llmConfigured, animError, activeFileName,
     manimVideos = [], isManimRendering = false, manimError, onGenerateManimVideo, onDeleteManimVideo,
-    activeFileLineCount = 0
+    onCancelAnimation, onCancelManimVideo, activeFileLineCount = 0
 }: AnimationTabProps) {
     const canGenerateVideo = llmConfigured && activeFileName && activeFileLineCount > 0 && activeFileLineCount <= MAX_MANIM_LINES;
+
+    // Timers
+    const [manimElapsed, setManimElapsed] = useState(0);
+    const [blockElapsed, setBlockElapsed] = useState(0);
+
+    useEffect(() => {
+        let interval: any;
+        if (isManimRendering) {
+            interval = setInterval(() => setManimElapsed(p => p + 1), 1000);
+        } else {
+            setManimElapsed(0);
+        }
+        return () => clearInterval(interval);
+    }, [isManimRendering]);
+
+    useEffect(() => {
+        let interval: any;
+        if (isGenerating) {
+            interval = setInterval(() => setBlockElapsed(p => p + 1), 1000);
+        } else {
+            setBlockElapsed(0);
+        }
+        return () => clearInterval(interval);
+    }, [isGenerating]);
+
+    const formatTime = (sec: number) => `${Math.floor(sec / 60)}:${(sec % 60).toString().padStart(2, '0')}`;
+    
+    // Estimates (optimized generation)
+    const manimEstimate = Math.max(25, Math.floor(activeFileLineCount * 1.0)); // ~1s per line
+    const blockEstimate = 15; // ~15 seconds for block animation
 
     return (
         <div className="animation-tab">
@@ -61,7 +95,7 @@ function AnimationTab({
                             onClick={onClearAll}
                             title="Clear all block animations"
                         >
-                            <VscTrash size={12} />
+                            <LuTrash2 size={12} />
                         </button>
                     )}
                 </div>
@@ -84,13 +118,26 @@ function AnimationTab({
                             title={
                                 !activeFileName ? 'Open a file first' :
                                 activeFileLineCount > MAX_MANIM_LINES ? `File too long (${activeFileLineCount}/${MAX_MANIM_LINES} lines)` :
-                                !llmConfigured ? 'Configure API key in .env' :
+                                !llmConfigured ? 'Configure AI Service in backend settings' :
                                 isManimRendering ? 'Rendering in progress...' :
-                                'Generate Manim video for this file'
+                                'Generate High-Quality Video for this file'
                             }
                         >
                             {isManimRendering ? (
-                                <><LuLoader size={14} className="spin-icon" /> Rendering Video...</>
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, width: '100%' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <LuLoader size={14} className="spin-icon" /> Rendering Video...
+                                    </div>
+                                    <div style={{ fontSize: '10px', opacity: 0.8, fontWeight: 'normal', fontFamily: 'monospace' }}>
+                                        {formatTime(manimElapsed)} / ~{formatTime(manimEstimate)}
+                                    </div>
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); onCancelManimVideo?.(); }}
+                                        style={{ marginTop: 4, padding: '2px 8px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '10px', cursor: 'pointer' }}
+                                    >
+                                        Stop Generation
+                                    </button>
+                                </div>
                             ) : (
                                 <><LuFilm size={14} /> Generate Video</>
                             )}
@@ -120,7 +167,7 @@ function AnimationTab({
                             <div className="card-header">
                                 <span className="card-label">
                                     <LuFilm size={10} style={{ marginRight: 4, opacity: 0.6 }} />
-                                    Manim Video
+                                    HD Render
                                 </span>
                                 <div className="card-meta">
                                     <span className="card-steps manim-badge">MP4</span>
@@ -165,9 +212,22 @@ function AnimationTab({
                 {/* ── Block Animations Section ── */}
                 {isGenerating && (
                     <div className="animation-card tracing">
-                        <div className="tracing-indicator">
-                            <div className="tracing-spinner" />
-                            <span>Generating animation...</span>
+                        <div className="tracing-indicator" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <div className="tracing-spinner" />
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                    <span>Generating AI animation...</span>
+                                    <span style={{ fontSize: '10px', opacity: 0.7, fontFamily: 'monospace' }}>
+                                        {formatTime(blockElapsed)} / ~{formatTime(blockEstimate)}
+                                    </span>
+                                </div>
+                            </div>
+                            <button 
+                                onClick={onCancelAnimation}
+                                style={{ padding: '4px 8px', background: 'transparent', color: '#ef4444', border: '1px solid #ef4444', borderRadius: '4px', fontSize: '10px', cursor: 'pointer' }}
+                            >
+                                Stop
+                            </button>
                         </div>
                     </div>
                 )}
@@ -190,9 +250,9 @@ function AnimationTab({
                         <p>No block animations yet</p>
                         <span className="empty-hint">
                             {llmConfigured ? (
-                                <>Click the <span style={{ color: '#16a34a' }}>▶</span> icon next to a code block<br />to generate an animation</>
+                                <>No block animations generated yet.<br />Click the play button on a code block in the editor to trace it.</>
                             ) : (
-                                <>Add your API key to <strong>backend/.env</strong><br />to enable LLM animations</>
+                                <>Configure your <strong>AI Service</strong><br />to enable animations</>
                             )}
                         </span>
                     </div>

@@ -1,5 +1,6 @@
+import { LuPlay, LuPause, LuChevronRight, LuChevronLeft, LuMaximize, LuMinimize } from 'react-icons/lu';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { LuPlay, LuPause, LuSkipForward, LuSkipBack, LuMaximize2, LuMinimize2 } from 'react-icons/lu';
+
 import './AnimationPlayer.css';
 
 /* ── Types ── */
@@ -32,38 +33,38 @@ function rgbS(c: RGB, a = 1): string {
 /* ── Theme ── */
 
 const T = {
-    bg: hex('#0b0b18'), codeBg: hex('#0d0d1e'), vizBg: hex('#0d0d20'),
-    border: hex('#1c1c36'), blue: hex('#3b82f6'), purple: hex('#8b5cf6'),
-    teal: hex('#14b8a6'), amber: hex('#f59e0b'), red: hex('#ef4444'),
-    green: hex('#10b981'), pink: hex('#ec4899'),
-    text: hex('#e2e8f0'), dim: hex('#94a3b8'), muted: hex('#475569'),
-    cell: hex('#161628'), cellHl: hex('#1e3a5f'), cellBdr: hex('#2a2a4a'),
+    bg: hex('#1b1913'), codeBg: hex('#1b1913'), vizBg: hex('#1b1913'),
+    border: hex('#49433a'), blue: hex('#8a6616'), purple: hex('#8a6616'),
+    teal: hex('#8a6616'), amber: hex('#8a6616'), red: hex('#A1A1AA'),
+    green: hex('#FAFAFA'), pink: hex('#8a6616'),
+    text: hex('#FAFAFA'), dim: hex('#D4D4D8'), muted: hex('#A1A1AA'),
+    cell: hex('#1b1913'), cellHl: hex('#49433a'), cellBdr: hex('#49433a'),
     white: [255, 255, 255] as RGB,
 };
-const VPAL: RGB[] = [T.blue, T.purple, T.teal, T.amber, T.green, T.pink, T.red];
+const VPAL: RGB[] = [T.blue, T.teal, T.amber, T.green, T.red, T.blue, T.teal];
 
 /* ── Syntax tokenizer ── */
 
 const KW: Record<string, string> = {
-    'def':'#C586C0','class':'#C586C0','return':'#C586C0','import':'#C586C0',
-    'from':'#C586C0','if':'#C586C0','elif':'#C586C0','else':'#C586C0',
-    'for':'#C586C0','while':'#C586C0','in':'#C586C0','not':'#C586C0',
-    'and':'#C586C0','or':'#C586C0','try':'#C586C0','except':'#C586C0',
-    'finally':'#C586C0','with':'#C586C0','as':'#C586C0','yield':'#C586C0',
-    'lambda':'#C586C0','pass':'#C586C0','break':'#C586C0','continue':'#C586C0',
-    'raise':'#C586C0','async':'#C586C0','await':'#C586C0',
-    'const':'#569CD6','let':'#569CD6','var':'#569CD6','function':'#569CD6',
-    'new':'#569CD6','this':'#569CD6','typeof':'#569CD6','instanceof':'#569CD6',
-    'switch':'#C586C0','case':'#C586C0','default':'#C586C0',
-    'public':'#569CD6','private':'#569CD6','protected':'#569CD6','static':'#569CD6',
-    'void':'#569CD6','int':'#569CD6','float':'#569CD6','double':'#569CD6',
-    'char':'#569CD6','boolean':'#569CD6','String':'#4EC9B0',
-    'true':'#569CD6','false':'#569CD6','True':'#569CD6','False':'#569CD6',
-    'None':'#569CD6','null':'#569CD6','undefined':'#569CD6',
-    'print':'#DCDCAA','range':'#DCDCAA','len':'#DCDCAA','append':'#DCDCAA',
-    'console':'#4EC9B0','log':'#DCDCAA','push':'#DCDCAA','pop':'#DCDCAA',
-    'map':'#DCDCAA','filter':'#DCDCAA','reduce':'#DCDCAA',
-    'Math':'#4EC9B0','System':'#4EC9B0','Arrays':'#4EC9B0',
+    'def':'#8a6616','class':'#8a6616','return':'#8a6616','import':'#8a6616',
+    'from':'#8a6616','if':'#8a6616','elif':'#8a6616','else':'#8a6616',
+    'for':'#8a6616','while':'#8a6616','in':'#8a6616','not':'#8a6616',
+    'and':'#8a6616','or':'#8a6616','try':'#8a6616','except':'#8a6616',
+    'finally':'#8a6616','with':'#8a6616','as':'#8a6616','yield':'#8a6616',
+    'lambda':'#8a6616','pass':'#8a6616','break':'#8a6616','continue':'#8a6616',
+    'raise':'#8a6616','async':'#8a6616','await':'#8a6616',
+    'const':'#D4D4D8','let':'#D4D4D8','var':'#D4D4D8','function':'#D4D4D8',
+    'new':'#D4D4D8','this':'#D4D4D8','typeof':'#D4D4D8','instanceof':'#D4D4D8',
+    'switch':'#8a6616','case':'#8a6616','default':'#8a6616',
+    'public':'#D4D4D8','private':'#D4D4D8','protected':'#D4D4D8','static':'#D4D4D8',
+    'void':'#D4D4D8','int':'#D4D4D8','float':'#D4D4D8','double':'#D4D4D8',
+    'char':'#D4D4D8','boolean':'#D4D4D8','String':'#D4D4D8',
+    'true':'#D4AF37','false':'#D4AF37','True':'#D4AF37','False':'#D4AF37',
+    'None':'#D4AF37','null':'#D4AF37','undefined':'#D4AF37',
+    'print':'#D4D4D8','range':'#D4D4D8','len':'#D4D4D8','append':'#D4D4D8',
+    'console':'#FAFAFA','log':'#D4D4D8','push':'#D4D4D8','pop':'#D4D4D8',
+    'map':'#D4D4D8','filter':'#D4D4D8','reduce':'#D4D4D8',
+    'Math':'#FAFAFA','System':'#FAFAFA','Arrays':'#FAFAFA',
 };
 
 function tokenize(line: string): { t: string; c: string }[] {
@@ -72,12 +73,12 @@ function tokenize(line: string): { t: string; c: string }[] {
     let m;
     while ((m = re.exec(line)) !== null) {
         const t = m[0];
-        let c = '#D4D4D4';
-        if (t.startsWith('#') || t.startsWith('//')) c = '#6A9955';
-        else if (t.startsWith('"') || t.startsWith("'")) c = '#CE9178';
-        else if (/^\d/.test(t)) c = '#B5CEA8';
+        let c = '#FAFAFA'; // Default text color
+        if (t.startsWith('#') || t.startsWith('//')) c = '#A1A1AA'; // comments
+        else if (t.startsWith('"') || t.startsWith("'")) c = '#8a6616'; // strings (gold)
+        else if (/^\d/.test(t)) c = '#8a6616'; // numbers (gold)
         else if (KW[t]) c = KW[t];
-        else if (/^[A-Z]/.test(t)) c = '#4EC9B0';
+        else if (/^[A-Z]/.test(t)) c = '#D4D4D8';
         out.push({ t, c });
     }
     return out;
@@ -241,6 +242,7 @@ class Scene {
     capTxt = '';
     prevVars = new Map<string, string>();
     onUpdate: ((fi: number, playing: boolean) => void) | null = null;
+    showCaption = true;
 
     constructor(cvs: HTMLCanvasElement) {
         this.cvs = cvs;
@@ -261,9 +263,10 @@ class Scene {
         this.cvs.style.width = `${this.W}px`;
         this.cvs.style.height = `${Math.max(1, this.H)}px`;
         this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-        this.cW = Math.floor(this.W * 0.44);
-        this.vX = this.cW;
-        this.vW = this.W - this.cW;
+        // Full width for visuals — no code panel
+        this.cW = 0;
+        this.vX = 0;
+        this.vW = this.W;
     }
 
     setFrames(frames: Frame[]) {
@@ -294,42 +297,43 @@ class Scene {
     applyFrame(i: number) {
         if (i < 0 || i >= this.frames.length) return;
         const fr = this.frames[i];
-        const cx = this.vX + this.vW / 2;
-        let vy = 55;
+        // Full canvas width: center everything
+        const cx = this.W / 2;
+        let vy = 60;
 
-        /* Data structure visuals */
+        /* Data structure visuals — full-width layout */
         const vk = new Set<string>();
         fr.visuals.forEach((vis, vi) => {
             const lid = `vl${vi}`;
             vk.add(lid);
             const [lbl, ln] = this.getEl(lid, 'text');
-            lbl.txt = vis.label || ''; lbl.tc = T.dim; lbl.fs = 11; lbl.fw = '600';
+            lbl.txt = vis.label || ''; lbl.tc = T.dim; lbl.fs = 12; lbl.fw = '600';
             if (ln) lbl.enter(cx, vy);
             lbl.tx = cx; lbl.ty = vy; lbl.to = 1; lbl.tsc = 1;
-            vy += 22;
+            vy += 26;
 
             const items = vis.items || [], hl = vis.highlight || [];
             switch (vis.type) {
-                case 'stack': this.layStack(vi, items, hl, cx, vy, vk); vy += items.length * 36 + 30; break;
-                case 'callStack': this.layCStack(vi, items, hl, cx, vy, vk); vy += items.length * 33 + 15; break;
-                case 'linkedList': this.layLinked(vi, items, hl, cx, vy, vk); vy += 55; break;
+                case 'stack': this.layStack(vi, items, hl, cx, vy, vk); vy += items.length * 40 + 36; break;
+                case 'callStack': this.layCStack(vi, items, hl, cx, vy, vk); vy += items.length * 33 + 18; break;
+                case 'linkedList': this.layLinked(vi, items, hl, cx, vy, vk); vy += 60; break;
                 case 'grid': this.layGrid(vi, items, hl, cx, vy, vk, vis.cols || 4);
-                    vy += Math.ceil(items.length / (vis.cols || 4)) * 38 + 15; break;
-                default: this.layArray(vi, items, hl, cx, vy, vk); vy += 65; break;
+                    vy += Math.ceil(items.length / (vis.cols || 4)) * 40 + 18; break;
+                default: this.layArray(vi, items, hl, cx, vy, vk); vy += 72; break;
             }
-            vy += 12;
+            vy += 20;
         });
         this.retire('v', vk);
 
-        /* Variables */
+        /* Variables - shown as pills below visuals */
         const pk = new Set<string>();
-        const varY = Math.max(vy + 8, this.H * 0.55);
-        const pw = 110, ph = 28, pg = 8;
-        const mc = Math.max(1, Math.floor((this.vW - 30) / (pw + pg)));
+        const varY = Math.max(vy + 12, this.H * 0.7);
+        const pw = 120, ph = 30, pg = 8;
+        const mc = Math.max(1, Math.floor((this.W - 40) / (pw + pg)));
         fr.variables.forEach((v, i) => {
-            const c = i % mc, r = Math.floor(i / mc);
-            const px = this.vX + 15 + c * (pw + pg) + pw / 2;
-            const py = varY + r * (ph + pg);
+            const col_i = i % mc, row = Math.floor(i / mc);
+            const px = 20 + col_i * (pw + pg) + pw / 2;
+            const py = varY + row * (ph + pg);
             const vid = `p_${v.name}`;
             pk.add(vid);
             const col = v.color ? hex(v.color) : VPAL[i % VPAL.length];
@@ -351,9 +355,6 @@ class Scene {
 
         this.prevVars.clear();
         fr.variables.forEach(v => this.prevVars.set(v.name, v.value));
-
-        /* Code highlight */
-        if (fr.code?.highlight?.length) this.hlTY = 32 + (fr.code.highlight[0] - 1) * 20;
 
         /* Caption */
         this.capTxt = fr.caption || '';
@@ -493,13 +494,10 @@ class Scene {
 
     drawBg() {
         const c = this.ctx;
+        // Pure black background — no code panel divider
         c.fillStyle = rgbS(T.bg); c.fillRect(0, 0, this.W, this.H);
-        c.fillStyle = rgbS(T.codeBg); c.fillRect(0, 0, this.cW, this.H);
-        c.fillStyle = rgbS(T.border); c.fillRect(this.cW, 0, 1, this.H);
-        const g = c.createLinearGradient(0, 0, this.W, 0);
-        g.addColorStop(0, '#3b82f6'); g.addColorStop(0.33, '#8b5cf6');
-        g.addColorStop(0.66, '#14b8a6'); g.addColorStop(1, '#3b82f6');
-        c.fillStyle = g; c.fillRect(0, 0, this.W, 2);
+        // Single thin gold accent line at top
+        c.fillStyle = '#8a6616'; c.fillRect(0, 0, this.W, 2);
     }
 
     drawCode(fr: Frame) {
@@ -560,20 +558,68 @@ class Scene {
     drawCaption() {
         const c = this.ctx;
         if (!this.capTxt) return;
-        const y = this.H - 14;
-        c.fillStyle = 'rgba(13,13,30,0.95)'; c.fillRect(0, this.H - 30, this.W, 30);
-        c.fillStyle = rgbS(T.border); c.fillRect(0, this.H - 30, this.W, 1);
-        rrect(c, 10, y - 9, 22, 18, 3);
+
+        const panelH = 70;
+        const panelY = this.H - panelH;
+
+        // Dark panel background with subtle gradient
+        const grad = c.createLinearGradient(0, panelY, 0, this.H);
+        grad.addColorStop(0, 'rgba(13,17,23,0.98)');
+        grad.addColorStop(1, 'rgba(6,8,12,1)');
+        c.fillStyle = grad;
+        c.fillRect(0, panelY, this.W, panelH);
+
+        // Top border
+        c.fillStyle = '#21262d';
+        c.fillRect(0, panelY, this.W, 1);
+
+        // Step badge — larger and more visible
+        const badgeX = 18, badgeY = panelY + 20;
+        rrect(c, badgeX, badgeY - 12, 30, 24, 5);
         c.fillStyle = 'rgba(59,130,246,0.15)'; c.fill();
-        c.font = '700 10px "JetBrains Mono",monospace';
+        c.strokeStyle = 'rgba(59,130,246,0.3)'; c.lineWidth = 1; c.stroke();
+        c.font = '700 12px "JetBrains Mono",monospace';
         c.textAlign = 'center'; c.fillStyle = '#3b82f6';
-        c.fillText(`${this.fi + 1}`, 21, y + 1);
-        c.font = '12px "Inter",-apple-system,sans-serif';
-        c.textAlign = 'left'; c.fillStyle = rgbS(T.dim);
-        const maxW = this.W - 60;
-        let txt = this.capTxt;
-        while (c.measureText(txt).width > maxW && txt.length > 5) txt = txt.slice(0, -4) + '\u2026';
-        c.fillText(txt, 40, y + 1);
+        c.fillText(`${this.fi + 1}`, badgeX + 15, badgeY + 1);
+
+        // Step counter — "of N"
+        c.font = '400 10px "JetBrains Mono",monospace';
+        c.fillStyle = '#484f58';
+        c.fillText(`/ ${this.frames.length}`, badgeX + 15, badgeY + 16);
+
+        // Caption text — large, readable, word-wrapped
+        const textX = 60;
+        const textMaxW = this.W - textX - 20;
+        c.font = '500 14px "Inter",-apple-system,sans-serif';
+        c.textAlign = 'left';
+        c.fillStyle = '#e6edf3';
+
+        // Word wrap into max 2 lines
+        const words = this.capTxt.split(' ');
+        const lines: string[] = [];
+        let currentLine = '';
+        for (const word of words) {
+            const test = currentLine ? currentLine + ' ' + word : word;
+            if (c.measureText(test).width > textMaxW && currentLine) {
+                lines.push(currentLine);
+                currentLine = word;
+            } else {
+                currentLine = test;
+            }
+        }
+        if (currentLine) lines.push(currentLine);
+
+        // Draw max 2 lines
+        const lineH = 20;
+        const startY = lines.length === 1 ? panelY + 38 : panelY + 28;
+        for (let i = 0; i < Math.min(lines.length, 2); i++) {
+            let line = lines[i];
+            if (i === 1 && lines.length > 2) {
+                // Truncate with ellipsis if more than 2 lines
+                line = line.slice(0, -3) + '…';
+            }
+            c.fillText(line, textX, startY + i * lineH);
+        }
     }
 
     drawOutput(fr: Frame) {
@@ -625,21 +671,20 @@ class Scene {
         if (!fr) return;
 
         this.drawBg();
-        this.drawCode(fr);
+        // No code panel — pure visualization canvas
 
         // z-order: lines → rects → text
         this.els.forEach(el => { if (el.kind === 'line') el.draw(this.ctx); });
         // arrow heads
         this.els.forEach(el => {
             if (el.kind === 'line' && el.id.includes('_a') && el.o > 0.05) {
-                this.drawArrowHead(el.x + el.lp[2], el.y + el.lp[3], T.purple, el.o);
+                this.drawArrowHead(el.x + el.lp[2], el.y + el.lp[3], T.blue, el.o);
             }
         });
         this.els.forEach(el => { if (el.kind === 'rect') el.draw(this.ctx); });
         this.els.forEach(el => { if (el.kind === 'text') el.draw(this.ctx); });
 
-        this.drawOutput(fr);
-        this.drawCaption();
+        if (this.showCaption) this.drawCaption();
     }
 
     loop = (now: number) => {
@@ -668,18 +713,20 @@ class Scene {
 }
 
 /* ══════════════════════════════════════════════════════════
-   React Component
+   React Component — with Focus Mode
    ══════════════════════════════════════════════════════════ */
 
 function AnimationPlayer({ animation, height = 300 }: Props) {
     const containerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const sceneRef = useRef<Scene | null>(null);
+    const stepsRef = useRef<HTMLDivElement>(null);
     const [fi, setFi] = useState(0);
     const [playing, setPlaying] = useState(false);
-    const [expanded, setExpanded] = useState(false);
+    const [isFocused, setIsFocused] = useState(false);
 
     const total = animation.frames?.length || 0;
+    const frames = animation.frames || [];
 
     useEffect(() => {
         const cvs = canvasRef.current;
@@ -687,7 +734,7 @@ function AnimationPlayer({ animation, height = 300 }: Props) {
         const scene = new Scene(cvs);
         sceneRef.current = scene;
         scene.onUpdate = (f, p) => { setFi(f); setPlaying(p); };
-        scene.setFrames(animation.frames || []);
+        scene.setFrames(frames);
         scene.start();
         return () => scene.stop();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -701,7 +748,30 @@ function AnimationPlayer({ animation, height = 300 }: Props) {
         return () => ro.disconnect();
     }, []);
 
-    useEffect(() => { setTimeout(() => sceneRef.current?.resize(), 80); }, [expanded]);
+    // Toggle caption visibility and resize when focus mode changes
+    useEffect(() => {
+        if (sceneRef.current) {
+            sceneRef.current.showCaption = !isFocused;
+        }
+        setTimeout(() => sceneRef.current?.resize(), 50);
+        setTimeout(() => sceneRef.current?.resize(), 200);
+    }, [isFocused]);
+
+    // Escape key exits focus mode
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && isFocused) setIsFocused(false); };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [isFocused]);
+
+    // Auto-scroll the steps list to keep current step visible
+    useEffect(() => {
+        if (!isFocused || !stepsRef.current) return;
+        const activeStep = stepsRef.current.querySelector('.anim-step.active');
+        if (activeStep) {
+            activeStep.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }, [fi, isFocused]);
 
     const onPlay = useCallback(() => sceneRef.current?.play(), []);
     const onPause = useCallback(() => sceneRef.current?.pause(), []);
@@ -710,30 +780,82 @@ function AnimationPlayer({ animation, height = 300 }: Props) {
     const onScrub = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         sceneRef.current?.pause(); sceneRef.current?.goTo(Number(e.target.value));
     }, []);
+    const goToStep = useCallback((i: number) => {
+        sceneRef.current?.pause(); sceneRef.current?.goTo(i);
+    }, []);
 
     if (total === 0) return <div className="anim-player-empty">No animation data</div>;
 
+    /* ── Controls bar (shared between normal and focus mode) ── */
+    const controls = (
+        <div className="anim-controls">
+            <button onClick={onBack} disabled={fi === 0} title="Previous"><LuChevronLeft size={14} /></button>
+            {playing
+                ? <button className="anim-play-btn" onClick={onPause} title="Pause"><LuPause size={16} /></button>
+                : <button className="anim-play-btn" onClick={onPlay} title="Play"><LuPlay size={16} /></button>}
+            <button onClick={onFwd} disabled={fi >= total - 1} title="Next"><LuChevronRight size={14} /></button>
+            <div className="anim-scrubber-track">
+                <div className="anim-scrubber-fill" style={{ width: `${(fi / Math.max(total - 1, 1)) * 100}%` }} />
+                <input type="range" className="anim-scrubber" min={0} max={total - 1} value={fi} onChange={onScrub} />
+            </div>
+            <span className="anim-step-label">{fi + 1}/{total}</span>
+            <button onClick={() => setIsFocused(f => !f)} title={isFocused ? 'Close' : 'Focus'}>
+                {isFocused ? <LuMinimize size={14} /> : <LuMaximize size={14} />}
+            </button>
+        </div>
+    );
+
     return (
-        <div ref={containerRef} className={`anim-player ${expanded ? 'expanded' : ''}`}
-            style={{ height: expanded ? '100%' : `${height}px` }}>
-            <canvas ref={canvasRef} className="anim-canvas-el" />
-            <div className="anim-controls">
-                <button onClick={onBack} disabled={fi === 0} title="Previous"><LuSkipBack size={14} /></button>
-                {playing
-                    ? <button className="anim-play-btn" onClick={onPause} title="Pause"><LuPause size={16} /></button>
-                    : <button className="anim-play-btn" onClick={onPlay} title="Play"><LuPlay size={16} /></button>}
-                <button onClick={onFwd} disabled={fi >= total - 1} title="Next"><LuSkipForward size={14} /></button>
-                <div className="anim-scrubber-track">
-                    <div className="anim-scrubber-fill" style={{ width: `${(fi / Math.max(total - 1, 1)) * 100}%` }} />
-                    <input type="range" className="anim-scrubber" min={0} max={total - 1} value={fi} onChange={onScrub} />
+        <div ref={containerRef} className={`anim-player ${isFocused ? 'focused' : ''}`}
+            style={{ height: isFocused ? undefined : `${height}px` }}>
+
+            {/* ── Backdrop (focus mode only) ── */}
+            {isFocused && <div className="anim-focus-backdrop" onClick={() => setIsFocused(false)} />}
+
+            <div className="anim-player-inner">
+                {/* ── Close button (focus mode only) ── */}
+                {isFocused && (
+                    <button className="anim-focus-close" onClick={() => setIsFocused(false)} title="Close (Esc)">✕</button>
+                )}
+
+                {/* ── Left panel: step-by-step explanations (focus mode only) ── */}
+                {isFocused && (
+                    <div className="anim-focus-left">
+                        <div className="anim-focus-left-header">
+                            <span className="anim-focus-left-title">Step-by-Step Explanation</span>
+                            <span className="anim-focus-left-count">{total} steps</span>
+                        </div>
+                        <div className="anim-focus-steps" ref={stepsRef}>
+                            {frames.map((frame, i) => (
+                                <div
+                                    key={i}
+                                    className={`anim-step ${i === fi ? 'active' : ''} ${i < fi ? 'completed' : ''}`}
+                                    onClick={() => goToStep(i)}
+                                >
+                                    <div className="anim-step-num">{i + 1}</div>
+                                    <div className="anim-step-body">
+                                        <p className="anim-step-text">{frame.caption || `Step ${i + 1}`}</p>
+                                        {frame.visuals?.map((vis, vi) => (
+                                            <span key={vi} className="anim-step-tag">{vis.type}: {vis.label}</span>
+                                        ))}
+                                    </div>
+                                    {i === fi && <div className="anim-step-indicator">▶</div>}
+                                    {i < fi && <div className="anim-step-check">✓</div>}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* ── Right panel: canvas + controls ── */}
+                <div className="anim-focus-right">
+                    <canvas ref={canvasRef} className="anim-canvas-el" />
+                    {controls}
                 </div>
-                <span className="anim-step-label">{fi + 1}/{total}</span>
-                <button onClick={() => setExpanded(e => !e)} title={expanded ? 'Minimize' : 'Expand'}>
-                    {expanded ? <LuMinimize2 size={14} /> : <LuMaximize2 size={14} />}
-                </button>
             </div>
         </div>
     );
 }
 
 export default AnimationPlayer;
+

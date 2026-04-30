@@ -1,5 +1,6 @@
+import { LuChevronRight } from 'react-icons/lu';
 import { useState, useEffect, useRef } from 'react';
-import { VscChevronRight } from 'react-icons/vsc';
+
 import './CommandPalette.css';
 
 interface Command {
@@ -77,7 +78,7 @@ function CommandPalette({ isOpen, onClose, commands }: CommandPaletteProps) {
         <div className="command-palette-overlay" onClick={onClose}>
             <div className="command-palette" onClick={e => e.stopPropagation()}>
                 <div className="command-input-wrapper">
-                    <VscChevronRight className="command-chevron" />
+                    <LuChevronRight className="command-chevron" />
                     <input
                         ref={inputRef}
                         className="command-input"

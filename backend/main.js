@@ -11,7 +11,7 @@ const { lintCode } = require('./services/linterService');
 const { detectBlocks, extToLanguage } = require('./services/blockDetectorUniversal');
 const { generateAnimation, loadAnimations, deleteAnimation: deleteAnim, clearAnimations } = require('./services/animationGenerator');
 const { isConfigured: isLlmConfigured, getConfig: getLlmConfig } = require('./services/llmService');
-const { generateManimVideo, loadManimVideos, deleteManimVideo } = require('./services/manimService');
+const { generateManimVideo, loadManimVideos, deleteManimVideo, cancelManimVideo } = require('./services/manimService');
 const { getStatus, runGit } = require('./services/gitService');
 const debugService = require('./services/debugService');
 
@@ -454,6 +454,12 @@ ipcMain.handle('animation:getLlmStatus', async () => {
     };
 });
 
+ipcMain.handle('animation:cancel', async () => {
+    // Soft cancel signal (handled in frontend via ignoring promise)
+    // No backend abort logic for Gemini yet since fetch isn't exposed with AbortSignal
+    return { success: true };
+});
+
 // Git Integration
 
 /* ── Manim Video IPC ── */
@@ -466,6 +472,11 @@ ipcMain.handle('manim:generate', async (event, { filePath, code, language }) => 
         console.error('[main.js] Manim generation error:', err.message);
         return { success: false, error: err.message };
     }
+});
+
+ipcMain.handle('manim:cancel', async () => {
+    cancelManimVideo();
+    return { success: true };
 });
 
 ipcMain.handle('manim:loadVideos', async (event, filePath) => {

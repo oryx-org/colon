@@ -1,11 +1,10 @@
+import { LuFile, LuFileJson, LuFileCode, LuSettings } from 'react-icons/lu';
 /**
  * FileIcon — Maps file extensions to language-specific colored icons.
  * Used in ExplorerPanel and Workspace tabs for a VS Code-like experience.
  */
 
-import {
-    VscFile, VscJson, VscMarkdown, VscSettingsGear
-} from 'react-icons/vsc';
+
 import {
     SiPython, SiJavascript, SiTypescript, SiReact,
     SiHtml5, SiCss, SiSass,
@@ -69,18 +68,18 @@ const EXTENSION_MAP: Record<string, IconMapping> = {
     '.less': { icon: SiCss, color: '#1D365D' },
 
     // Data / Config
-    '.json': { icon: VscJson, color: '#F5C518' },
+    '.json': { icon: LuFileJson, color: '#F5C518' },
     '.yaml': { icon: SiYaml, color: '#CB171E' },
     '.yml': { icon: SiYaml, color: '#CB171E' },
     '.xml': { icon: FaFileCode, color: '#E37933' },
     '.svg': { icon: FaFileImage, color: '#FFB13B' },
-    '.toml': { icon: VscSettingsGear, color: '#9C4121' },
-    '.ini': { icon: VscSettingsGear, color: '#6D8086' },
-    '.env': { icon: VscSettingsGear, color: '#ECD53F' },
+    '.toml': { icon: LuSettings, color: '#9C4121' },
+    '.ini': { icon: LuSettings, color: '#6D8086' },
+    '.env': { icon: LuSettings, color: '#ECD53F' },
 
     // Markdown
-    '.md': { icon: VscMarkdown, color: '#519ABA' },
-    '.mdx': { icon: VscMarkdown, color: '#519ABA' },
+    '.md': { icon: LuFileCode, color: '#519ABA' },
+    '.mdx': { icon: LuFileCode, color: '#519ABA' },
 
     // Shell
     '.sh': { icon: SiGnubash, color: '#4EAA25' },
@@ -148,15 +147,15 @@ const FILENAME_MAP: Record<string, IconMapping> = {
     'dockerfile': { icon: SiDocker, color: '#2496ED' },
     'docker-compose.yml': { icon: SiDocker, color: '#2496ED' },
     'docker-compose.yaml': { icon: SiDocker, color: '#2496ED' },
-    'makefile': { icon: VscSettingsGear, color: '#6D8086' },
-    'cmakelists.txt': { icon: VscSettingsGear, color: '#6D8086' },
+    'makefile': { icon: LuSettings, color: '#6D8086' },
+    'cmakelists.txt': { icon: LuSettings, color: '#6D8086' },
     '.gitignore': { icon: FaGitAlt, color: '#F05032' },
     '.gitattributes': { icon: FaGitAlt, color: '#F05032' },
-    '.env': { icon: VscSettingsGear, color: '#ECD53F' },
-    '.env.local': { icon: VscSettingsGear, color: '#ECD53F' },
-    '.env.development': { icon: VscSettingsGear, color: '#ECD53F' },
-    '.env.production': { icon: VscSettingsGear, color: '#ECD53F' },
-    'package.json': { icon: VscJson, color: '#CB3837' },
+    '.env': { icon: LuSettings, color: '#ECD53F' },
+    '.env.local': { icon: LuSettings, color: '#ECD53F' },
+    '.env.development': { icon: LuSettings, color: '#ECD53F' },
+    '.env.production': { icon: LuSettings, color: '#ECD53F' },
+    'package.json': { icon: LuFileJson, color: '#CB3837' },
     'tsconfig.json': { icon: SiTypescript, color: '#3178C6' },
     'vite.config.ts': { icon: SiTypescript, color: '#646CFF' },
     'vite.config.js': { icon: SiJavascript, color: '#646CFF' },
@@ -176,7 +175,7 @@ function getIconForFile(fileName: string): IconMapping {
     }
 
     // Default
-    return { icon: VscFile, color: '#9D9D9D' };
+    return { icon: LuFile, color: '#9D9D9D' };
 }
 
 function FileIcon({ fileName, size = 15, className = '' }: FileIconProps) {

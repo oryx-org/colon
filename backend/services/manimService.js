@@ -21,36 +21,42 @@ const MAX_LINES = 200;
 const SCENE_CLASS = 'CodeScene';
 
 let isRendering = false;
+let isCancelled = false;
+let currentProc = null;
+
+function cancelManimVideo() {
+    isCancelled = true;
+    if (currentProc) {
+        console.log('[manimService] Cancelling active Manim render...');
+        currentProc.kill('SIGTERM');
+        currentProc = null;
+    }
+}
 
 /* ── System Prompt ── */
 
-const SYSTEM_PROMPT = `You are a Manim Community Edition animation script generator for an educational IDE.
+const SYSTEM_PROMPT = `You are an expert Manim CE animation director and precise code execution engine.
 
-Given source code, produce a SINGLE Python file with a Scene class called "CodeScene" that visualizes the code's step-by-step execution.
+RULE #1: ACCURACY. Mentally execute the code with actual inputs FIRST. Every value on screen must match real execution.
 
-RULES:
-1. Return ONLY valid Python code. No markdown fences, no explanations, no comments outside the code.
-2. Start with: from manim import *
-3. The class MUST be named "CodeScene" and extend Scene.
-4. Show the execution flow visually:
-   - Display the source code on the LEFT using Code() or Text() objects
-   - Highlight the current executing line (use surrounding rectangles or color changes)
-   - Show variable values on the RIGHT, updating as execution progresses
-   - Show data structures (arrays, lists) as visual objects that animate
-   - Show output/print statements appearing at the bottom
-5. Use smooth transitions: FadeIn, FadeOut, Transform, Write, Create
-6. Keep total animation under 20 seconds (use self.wait(0.3) to self.wait(0.8) between steps)
-7. Use ONLY standard Manim CE imports (from manim import *)
-8. Use monospace fonts for code: Text("...", font="Monospace", font_size=16)
-9. Use a dark background color: self.camera.background_color = "#0a0e17"
-10. Maximum 15-20 animation steps (don't animate every single line for long code — summarize loops)
-11. For loops: show 2-3 iterations visually, then skip to final state
-12. Color scheme: code=#e2e8f0, variables=#3b82f6, highlights=#f59e0b, output=#10b981
-13. Place code panel on left (x=-3.5), variables panel on right (x=3.5)
-14. Handle errors gracefully — if code has complex imports, just visualize the algorithm flow
+TECHNICAL RULES:
+- Return ONLY Python code. No markdown fences, no explanation text.
+- Start: from manim import *
+- Class: "CodeScene(Scene)" with self.camera.background_color = "#0d1117"
+- Use ONLY standard Manim CE objects. NO Code() objects.
+- Use Text() for text with font_size parameter. File must run: manim -ql scene.py CodeScene
 
-IMPORTANT: The Python file must be directly executable by: manim render -ql scene.py CodeScene
-Do NOT use any features that require additional packages beyond manim.`;
+VISUALIZATION — Show algorithm concepts, NOT source code:
+- Arrays → colored Rectangles with labels | Stacks → vertical RoundedRectangles
+- Trees → Circles+Lines | Sorting → height bars that swap | Pointers → Triangle arrows
+- Queues → horizontal boxes | Hash Maps → key|value grid | Linked Lists → boxes+arrows
+
+STYLE: Large bold shapes (min 0.5 height). Title Text per step. Smooth transitions (FadeIn/Out, Transform, Indicate).
+Keep animation under 30 seconds. Max 12-15 distinct steps. self.wait(0.5-1.0) between steps.
+
+COLORS: #3b82f6 (default) #f59e0b (active) #10b981 (done) #ef4444 (error) #f1f5f9 (text) #475569 (borders)`;
+
+
 
 /* ── Helpers ── */
 
@@ -127,6 +133,7 @@ async function generateManimVideo(filePath, code, language) {
     }
 
     isRendering = true;
+    isCancelled = false;
 
     try {
         // Step 1: Generate Manim script via LLM
@@ -140,7 +147,11 @@ Source code:
 ${code}
 \`\`\`
 
-Generate the Manim CE Python script (CodeScene class) that visualizes this code's execution step-by-step.`;
+INSTRUCTIONS:
+1. Mentally execute this code with actual inputs. Track every variable and iteration.
+2. Write a Manim CE CodeScene visualizing the EXACT execution trace.
+3. All values on screen must be correct. Keep to 12-15 animation steps max.
+4. Return ONLY Python code.`;
 
         let manimScript;
         let retries = 0;
@@ -148,7 +159,7 @@ Generate the Manim CE Python script (CodeScene class) that visualizes this code'
             try {
                 const response = await chatCompletion(SYSTEM_PROMPT, userPrompt, {
                     temperature: 0.2,
-                    maxTokens: 3000,
+                    maxTokens: 12288,
                 });
 
                 // Extract Python code from response
@@ -159,13 +170,31 @@ Generate the Manim CE Python script (CodeScene class) that visualizes this code'
                 if (retries > 2) throw err;
 
                 // Auto-wait on rate limit
-                if (err.message && err.message.includes('Rate limit')) {
-                    const m = err.message.match(/try again in ([\d.]+)s/i);
-                    const waitSec = m ? Math.ceil(parseFloat(m[1])) + 1 : 12;
+                const isRateLimit = err.message && (
+                    err.message.includes('Rate limit') ||
+                    err.message.includes('rate_limit') ||
+                    err.message.includes('429') ||
+                    err.message.includes('Quota exceeded')
+                );
+
+                if (isRateLimit) {
+                    // Try to parse wait time
+                    // Gemini: "retry in 25.54s"
+                    const m1 = err.message.match(/retry in ([\d.]+)s/i);
+                    // Groq/OpenAI: "try again in 10s"
+                    const m2 = err.message.match(/try again in ([\d.]+)s/i);
+                    
+                    const waitSec = m1 ? Math.ceil(parseFloat(m1[1])) + 1 : 
+                                    (m2 ? Math.ceil(parseFloat(m2[1])) + 1 : 12);
+
                     console.warn(`[manimService] Rate limited. Waiting ${waitSec}s...`);
                     await new Promise(r => setTimeout(r, waitSec * 1000));
                 } else {
                     console.warn(`[manimService] LLM retry ${retries}: ${err.message}`);
+                }
+
+                if (retries >= 2 && err.message.includes('Quota exceeded')) {
+                    throw new Error("API Quota Exceeded. The free tier of the AI Service has a limit (e.g., 20 requests). Please wait for it to reset or switch to a different AI provider in settings.");
                 }
             }
         }
@@ -189,9 +218,35 @@ Generate the Manim CE Python script (CodeScene class) that visualizes this code'
         fs.writeFileSync(scenePath, manimScript, 'utf-8');
         console.log('[manimService] Manim script written to:', scenePath);
 
+        // Step 2.5: Pre-validate Python syntax BEFORE running Manim.
+        // If invalid, auto-retry LLM up to 2 more times.
+        let syntaxOk = await validatePythonSyntax(scenePath);
+        let syntaxRetries = 0;
+        while (!syntaxOk && syntaxRetries < 2) {
+            syntaxRetries++;
+            console.warn(`[manimService] Syntax validation failed. Retrying LLM (attempt ${syntaxRetries})...`);
+            try {
+                const retryResponse = await chatCompletion(SYSTEM_PROMPT, userPrompt, {
+                    temperature: 0.1, // lower temp for more precise output
+                    maxTokens: 8192,
+                });
+                manimScript = extractPython(retryResponse);
+                fs.writeFileSync(scenePath, manimScript, 'utf-8');
+                syntaxOk = await validatePythonSyntax(scenePath);
+            } catch (e) {
+                console.warn('[manimService] Retry failed:', e.message);
+            }
+        }
+
+        if (!syntaxOk) {
+            throw new Error('Generated script failed Python syntax validation after 3 attempts. The AI could not produce valid code for this file.');
+        }
+
         // Step 3: Run manim render
         console.log('[manimService] Starting Manim render...');
+        if (isCancelled) throw new Error('Cancelled');
         await runManim(scenePath, renderDir);
+        if (isCancelled) throw new Error('Cancelled');
 
         // Step 4: Find the rendered MP4
         const mediaDir = path.join(renderDir, 'media');
@@ -220,8 +275,16 @@ Generate the Manim CE Python script (CodeScene class) that visualizes this code'
 
         return meta;
 
+    } catch (err) {
+        if (isCancelled) {
+            console.log('[manimService] Generation cancelled by user.');
+            throw new Error('Cancelled');
+        }
+        throw err;
     } finally {
         isRendering = false;
+        isCancelled = false;
+        currentProc = null;
     }
 }
 
@@ -241,7 +304,7 @@ function runManim(scenePath, workDir) {
 
         console.log(`[manimService] Running: python3 ${args.join(' ')}`);
 
-        const proc = spawn('python3', args, {
+        currentProc = spawn('python3', args, {
             cwd: workDir,
             timeout: 120000,    // 2 minute max
             env: { ...process.env },
@@ -250,15 +313,19 @@ function runManim(scenePath, workDir) {
         let stdout = '';
         let stderr = '';
 
-        proc.stdout.on('data', (data) => {
+        currentProc.stdout.on('data', (data) => {
             stdout += data.toString();
         });
 
-        proc.stderr.on('data', (data) => {
+        currentProc.stderr.on('data', (data) => {
             stderr += data.toString();
         });
 
-        proc.on('close', (code) => {
+        currentProc.on('close', (code) => {
+            if (isCancelled) {
+                reject(new Error('Cancelled'));
+                return;
+            }
             if (code === 0) {
                 console.log('[manimService] Manim render complete');
                 resolve({ stdout, stderr });
@@ -268,7 +335,11 @@ function runManim(scenePath, workDir) {
             }
         });
 
-        proc.on('error', (err) => {
+        currentProc.on('error', (err) => {
+            if (isCancelled) {
+                reject(new Error('Cancelled'));
+                return;
+            }
             reject(new Error(`Failed to start manim: ${err.message}. Is manim installed? (python3 -m pip install manim)`));
         });
     });
@@ -282,24 +353,72 @@ function extractPython(text) {
         throw new Error('Empty LLM response');
     }
 
-    // Strip markdown fences
+    // Step 1: Try to extract from markdown fence first
     const fenceMatch = text.match(/```(?:python)?\s*\n([\s\S]*?)\n```/);
-    if (fenceMatch) return fenceMatch[1].trim();
+    let extracted = fenceMatch ? fenceMatch[1] : text;
 
-    // If response starts with import or from, it's raw Python
-    const trimmed = text.trim();
-    if (trimmed.startsWith('from ') || trimmed.startsWith('import ') || trimmed.startsWith('#')) {
-        return trimmed;
+    // Step 2: If no fence, find where the python starts
+    if (!fenceMatch) {
+        const fromIdx = extracted.indexOf('from manim');
+        if (fromIdx !== -1) extracted = extracted.slice(fromIdx);
     }
 
-    // Try to find Python code block
-    const fromIdx = text.indexOf('from manim');
-    if (fromIdx !== -1) return text.slice(fromIdx).trim();
+    // Step 3: Strip all remaining markdown fences aggressively
+    extracted = extracted.replace(/```python/gi, '');
+    extracted = extracted.replace(/```/g, '');
 
-    const importIdx = text.indexOf('import ');
-    if (importIdx !== -1) return text.slice(importIdx).trim();
+    // Step 4: Find the last valid Python line (cut off AI conversational trailing text).
+    const lines = extracted.split('\n');
+    let lastValidLine = 0;
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const trimmed = line.trim();
+        const isBlank = trimmed === '';
+        const isComment = trimmed.startsWith('#');
+        const isIndented = line.startsWith(' ') || line.startsWith('\t');
+        const isTopLevel = trimmed.startsWith('from ') || trimmed.startsWith('import ') ||
+                           trimmed.startsWith('class ') || trimmed.startsWith('def ') ||
+                           trimmed.startsWith('@');
+        // Reject bracket-annotation lines like [The rest of the file is empty] or [()]
+        const isBracketAnnotation = /^\[.*\]\s*$/.test(trimmed);
+        if (!isBracketAnnotation && (isBlank || isComment || isIndented || isTopLevel)) {
+            lastValidLine = i;
+        }
+    }
 
-    throw new Error('Could not extract Python script from LLM response');
+    return lines.slice(0, lastValidLine + 1).join('\n').trim();
+}
+
+/**
+ * Validate Python syntax by running `python3 -c "import ast; ast.parse(...)"` on the file.
+ * Returns true if valid, false if a SyntaxError is found.
+ */
+function validatePythonSyntax(filePath) {
+    return new Promise((resolve) => {
+        const proc = spawn('python3', ['-c', `
+import ast, sys
+try:
+    with open(sys.argv[1]) as f:
+        ast.parse(f.read())
+    print('OK')
+except SyntaxError as e:
+    print(f'SYNTAX_ERROR:{e.lineno}:{e.msg}', file=sys.stderr)
+    sys.exit(1)
+`, filePath]);
+
+        let stderr = '';
+        proc.stderr.on('data', d => stderr += d.toString());
+        proc.on('close', code => {
+            if (code === 0) {
+                console.log('[manimService] Syntax validation: PASSED');
+                resolve(true);
+            } else {
+                console.warn('[manimService] Syntax validation: FAILED —', stderr.trim());
+                resolve(false);
+            }
+        });
+        proc.on('error', () => resolve(true)); // if python3 not found, skip validation
+    });
 }
 
 /**
@@ -351,6 +470,7 @@ module.exports = {
     generateManimVideo,
     loadManimVideos,
     deleteManimVideo,
+    cancelManimVideo,
     isConfigured,
     MAX_LINES,
 };

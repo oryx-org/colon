@@ -1,9 +1,5 @@
+import { LuChevronRight, LuChevronDown, LuFilePlus, LuFolderPlus, LuRefreshCw, LuShrink, LuTrash2, LuFolder, LuPencil } from 'react-icons/lu';
 import { useState, useCallback, useRef, useEffect } from 'react';
-import {
-    VscChevronRight, VscChevronDown, VscFolder,
-    VscNewFile, VscNewFolder, VscRefresh, VscCollapseAll,
-    VscEdit, VscTrash
-} from 'react-icons/vsc';
 import FileIcon from '../FileIcon/FileIcon';
 import './ExplorerPanel.css';
 
@@ -26,6 +22,7 @@ interface InlineInput {
 
 interface ExplorerPanelProps {
     onFileClick: (path: string, name: string) => void;
+    onFileRenamed?: (oldPath: string, newPath: string) => void;
 }
 
 /* ── Helpers ── */
@@ -55,7 +52,7 @@ function findNode(nodes: FileNode[], targetPath: string): FileNode | null {
 /** Sort: directories first, then alphabetical */
 
 /* ── Component ── */
-function ExplorerPanel({ onFileClick }: ExplorerPanelProps) {
+function ExplorerPanel({ onFileClick, onFileRenamed }: ExplorerPanelProps) {
     const [rootPath, setRootPath] = useState<string | null>(null);
     const [tree, setTree] = useState<FileNode[]>([]);
     const [selectedPath, setSelectedPath] = useState<string | null>(null);
@@ -252,6 +249,9 @@ function ExplorerPanel({ onFileClick }: ExplorerPanelProps) {
             }
         } else if (inlineInput.type === 'rename' && inlineInput.renamePath) {
             success = await api.rename(inlineInput.renamePath, newPath);
+            if (success) {
+                onFileRenamed?.(inlineInput.renamePath, newPath);
+            }
         }
 
         if (success) await refreshTree();
@@ -303,7 +303,7 @@ function ExplorerPanel({ onFileClick }: ExplorerPanelProps) {
             <div className="file-icon-container">
                 <span style={{ width: 16 }} />
                 {inlineInput?.isDirectory
-                    ? <VscFolder className="item-icon folder" />
+                    ? <LuFolder className="item-icon folder" />
                     : <FileIcon fileName={inputValue || 'untitled'} size={15} />
                 }
             </div>
@@ -344,13 +344,13 @@ function ExplorerPanel({ onFileClick }: ExplorerPanelProps) {
                         <div className="file-icon-container">
                             {node.isDirectory ? (
                                 node.isOpen
-                                    ? <VscChevronDown className="collapse-icon" />
-                                    : <VscChevronRight className="collapse-icon" />
+                                    ? <LuChevronDown className="collapse-icon" />
+                                    : <LuChevronRight className="collapse-icon" />
                             ) : (
                                 <span style={{ width: 16, display: 'inline-block' }} />
                             )}
                             {node.isDirectory
-                                ? <VscFolder className="item-icon folder" />
+                                ? <LuFolder className="item-icon folder" />
                                 : <FileIcon fileName={node.name} size={15} />
                             }
                         </div>
@@ -377,24 +377,24 @@ function ExplorerPanel({ onFileClick }: ExplorerPanelProps) {
                             <div className="item-actions">
                                 {node.isDirectory && (
                                     <>
-                                        <VscNewFile
+                                        <LuFilePlus
                                             className="action-icon"
                                             title="New File"
                                             onClick={(e) => { e.stopPropagation(); setSelectedPath(node.path); startCreate(false); }}
                                         />
-                                        <VscNewFolder
+                                        <LuFolderPlus
                                             className="action-icon"
                                             title="New Folder"
                                             onClick={(e) => { e.stopPropagation(); setSelectedPath(node.path); startCreate(true); }}
                                         />
                                     </>
                                 )}
-                                <VscEdit
+                                <LuPencil
                                     className="action-icon"
                                     title="Rename"
                                     onClick={(e) => { e.stopPropagation(); startRename(node); }}
                                 />
-                                <VscTrash
+                                <LuTrash2
                                     className="action-icon delete"
                                     title="Delete"
                                     onClick={(e) => { e.stopPropagation(); handleDelete(node); }}
@@ -430,10 +430,10 @@ function ExplorerPanel({ onFileClick }: ExplorerPanelProps) {
             <div className="explorer-header">
                 <span className="explorer-title">EXPLORER</span>
                 <div className="explorer-actions">
-                    <button className="explorer-btn" title="New File" onClick={() => startCreate(false)}><VscNewFile /></button>
-                    <button className="explorer-btn" title="New Folder" onClick={() => startCreate(true)}><VscNewFolder /></button>
-                    <button className="explorer-btn" title="Refresh Explorer" onClick={refreshTree}><VscRefresh /></button>
-                    <button className="explorer-btn" title="Collapse All" onClick={collapseAll}><VscCollapseAll /></button>
+                    <button className="explorer-btn" title="New File" onClick={() => startCreate(false)}><LuFilePlus /></button>
+                    <button className="explorer-btn" title="New Folder" onClick={() => startCreate(true)}><LuFolderPlus /></button>
+                    <button className="explorer-btn" title="Refresh Explorer" onClick={refreshTree}><LuRefreshCw /></button>
+                    <button className="explorer-btn" title="Collapse All" onClick={collapseAll}><LuShrink /></button>
                 </div>
             </div>
 
@@ -473,22 +473,22 @@ function ExplorerPanel({ onFileClick }: ExplorerPanelProps) {
                         if (contextMenu.node?.isDirectory) setSelectedPath(contextMenu.node.path);
                         startCreate(false);
                     }}>
-                        <VscNewFile /> New File
+                        <LuFilePlus /> New File
                     </div>
                     <div className="context-item" onClick={() => {
                         if (contextMenu.node?.isDirectory) setSelectedPath(contextMenu.node.path);
                         startCreate(true);
                     }}>
-                        <VscNewFolder /> New Folder
+                        <LuFolderPlus /> New Folder
                     </div>
                     <div className="context-separator" />
                     {contextMenu.node && (
                         <>
                             <div className="context-item" onClick={() => startRename(contextMenu.node!)}>
-                                <VscEdit /> Rename
+                                <LuPencil /> Rename
                             </div>
                             <div className="context-item danger" onClick={() => handleDelete(contextMenu.node!)}>
-                                <VscTrash /> Delete
+                                <LuTrash2 /> Delete
                             </div>
                         </>
                     )}

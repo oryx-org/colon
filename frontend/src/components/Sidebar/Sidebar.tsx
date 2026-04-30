@@ -1,7 +1,6 @@
-import { LuSearch, LuSettings } from 'react-icons/lu';
-import { VscTerminal, VscSourceControl, VscDebugAlt } from 'react-icons/vsc';
-import folderIcon from '../../assets/figmaAssets/sideBar/folder-2.svg';
-import categoryIcon from '../../assets/figmaAssets/sideBar/category-2.png';
+import { LuSearch, LuSettings, LuFiles, LuBlocks, LuTerminal, LuGitBranch, LuBug } from 'react-icons/lu';
+
+import './Sidebar.css';
 import './Sidebar.css';
 
 interface SidebarProps {
@@ -22,7 +21,7 @@ function Sidebar({ activeTab, setActiveTab, showTerminal, setShowTerminal, onSet
                     onClick={() => setActiveTab('folder')}
                     title="Explorer"
                 >
-                    <img src={folderIcon} alt="Folder" className="sidebar-icon-img" />
+                    <LuFiles className="sidebar-icon-svg" />
                 </button>
                 <button
                     className={`sidebar-btn ${activeTab === 'search' ? 'active' : ''}`}
@@ -36,28 +35,28 @@ function Sidebar({ activeTab, setActiveTab, showTerminal, setShowTerminal, onSet
                     onClick={() => setActiveTab('git')}
                     title="Source Control"
                 >
-                    <VscSourceControl className="sidebar-icon-svg" />
+                    <LuGitBranch className="sidebar-icon-svg" />
                 </button>
                 <button
                     className={`sidebar-btn ${activeTab === 'debug' ? 'active' : ''}`}
                     onClick={() => setActiveTab('debug')}
                     title="Run and Debug"
                 >
-                    <VscDebugAlt className="sidebar-icon-svg" />
+                    <LuBug className="sidebar-icon-svg" />
                 </button>
                 <button
                     className={`sidebar-btn ${activeTab === 'category' ? 'active' : ''}`}
                     onClick={() => setActiveTab('category')}
                     title="Extensions"
                 >
-                    <img src={categoryIcon} alt="Category" className="sidebar-icon-img category-img" />
+                    <LuBlocks className="sidebar-icon-svg category-img" />
                 </button>
                 <button
                     className={`sidebar-btn ${showTerminal ? 'active' : ''}`}
                     onClick={() => setShowTerminal?.(!showTerminal)}
                     title="Toggle Terminal"
                 >
-                    <VscTerminal className="sidebar-icon-svg" />
+                    <LuTerminal className="sidebar-icon-svg" />
                 </button>
             </div>
 

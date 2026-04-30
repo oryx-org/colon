@@ -313,6 +313,15 @@ function App() {
     }
   }, [isGenerating, openFiles]);
 
+  const handleCancelAnimation = useCallback(async () => {
+    const api = (window as any).electronAPI;
+    if (api?.animation?.cancel) {
+      await api.animation.cancel();
+      setIsGenerating(false);
+      setAnimError("Animation generation stopped by user.");
+    }
+  }, []);
+
   // Delete a single animation
   const handleDeleteAnimation = useCallback(async (animId: string) => {
     const api = (window as any).electronAPI;
@@ -378,6 +387,15 @@ function App() {
       setIsManimRendering(false);
     }
   }, [isManimRendering]);
+
+  const handleCancelManimVideo = useCallback(async () => {
+    const api = (window as any).electronAPI;
+    if (api?.manim?.cancel) {
+      await api.manim.cancel();
+      setIsManimRendering(false);
+      setManimError("Video generation stopped by user.");
+    }
+  }, []);
 
   // Delete a Manim video
   const handleDeleteManimVideo = useCallback(async (videoId: string) => {
@@ -584,6 +602,9 @@ function App() {
     ));
   };
 
+  const openFilesRef = useRef(openFiles);
+  openFilesRef.current = openFiles;
+
   const saveActiveFile = async () => {
     const fileToSave = activeFileRef.current;
     if (!fileToSave || !fileToSave.isDirty) return;
@@ -596,8 +617,9 @@ function App() {
 
     const electron = (window as any).electronAPI;
     if (electron) {
-      // Re-fetch content to ensure we save the formatted output
-      const contentToSave = openFiles.find(f => f.path === fileToSave.path)?.content || fileToSave.content;
+      // Use ref to get the latest content (avoids stale closure)
+      const latestFile = openFilesRef.current.find(f => f.path === fileToSave.path);
+      const contentToSave = latestFile?.content || fileToSave.content;
       const success = await electron.writeFile(fileToSave.path, contentToSave);
       if (success) {
         setOpenFiles(prev => prev.map(f =>
@@ -619,6 +641,41 @@ function App() {
           f.path === file.path ? { ...f, isDirty: false } : f
         ));
       }
+    }
+  };
+
+  /** When a file is renamed in the explorer, update open tabs to match */
+  const handleFileRenamed = (oldPath: string, newPath: string) => {
+    const newName = newPath.substring(newPath.lastIndexOf('/') + 1);
+    const ext = newName.substring(newName.lastIndexOf('.') + 1).toLowerCase();
+    const languageMap: Record<string, string> = {
+      'js': 'javascript', 'jsx': 'javascript', 'ts': 'typescript', 'tsx': 'typescript',
+      'py': 'python', 'java': 'java', 'c': 'c', 'cpp': 'cpp', 'h': 'c', 'hpp': 'cpp',
+      'html': 'html', 'css': 'css', 'json': 'json', 'md': 'markdown',
+      'go': 'go', 'rs': 'rust', 'rb': 'ruby', 'php': 'php',
+      'sh': 'shell', 'bash': 'shell', 'yml': 'yaml', 'yaml': 'yaml',
+      'xml': 'xml', 'sql': 'sql', 'kt': 'kotlin', 'swift': 'swift',
+    };
+    const newLang = languageMap[ext] || 'plaintext';
+
+    setOpenFiles(prev => prev.map(f => {
+      // Direct match
+      if (f.path === oldPath) {
+        return { ...f, path: newPath, name: newName, language: newLang };
+      }
+      // If a folder was renamed, update all children
+      if (f.path.startsWith(oldPath + '/')) {
+        const updatedPath = newPath + f.path.substring(oldPath.length);
+        return { ...f, path: updatedPath };
+      }
+      return f;
+    }));
+
+    // Update active file path if needed
+    if (activeFilePath === oldPath) {
+      setActiveFilePath(newPath);
+    } else if (activeFilePath?.startsWith(oldPath + '/')) {
+      setActiveFilePath(newPath + activeFilePath.substring(oldPath.length));
     }
   };
 
@@ -804,6 +861,8 @@ function App() {
           manimError={manimError}
           onGenerateManimVideo={handleGenerateManimVideo}
           onDeleteManimVideo={handleDeleteManimVideo}
+          onCancelAnimation={handleCancelAnimation}
+          onCancelManimVideo={handleCancelManimVideo}
           activeFileLineCount={activeFileLineCount}
         />
       </div>
@@ -822,7 +881,7 @@ function App() {
   const leftArea = (
     <div className={leftTab === 'none' ? 'split-left-area-hidden' : 'split-left-area-visible'}>
       <div style={{ display: leftTab === 'folder' ? 'flex' : 'none', flex: 1, height: '100%', width: '100%' }}>
-        <ExplorerPanel onFileClick={handleOpenFile} />
+        <ExplorerPanel onFileClick={handleOpenFile} onFileRenamed={handleFileRenamed} />
       </div>
       <div style={{ display: leftTab === 'search' ? 'flex' : 'none', flex: 1, height: '100%', width: '100%' }}>
         <SearchPanel onFileClick={handleOpenFile} />

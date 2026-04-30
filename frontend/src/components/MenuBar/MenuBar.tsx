@@ -1,5 +1,6 @@
+import { LuMinus, LuMaximize, LuX, LuTerminal } from 'react-icons/lu';
 import { useState, useRef, useEffect } from 'react';
-import { VscChromeMinimize, VscChromeMaximize, VscChromeClose, VscTerminal } from 'react-icons/vsc';
+
 import './MenuBar.css';
 
 interface MenuBarProps {
@@ -155,16 +156,16 @@ function MenuBar({ onTerminalAction, onMenuAction, activeFileName }: MenuBarProp
             {/* Right: Window Controls */}
             <div className="menu-right no-drag">
                 <div className="window-control-btn" title="Toggle Terminal" onClick={() => onTerminalAction?.('toggleTerminal')}>
-                    <VscTerminal />
+                    <LuTerminal />
                 </div>
                 <div className="window-control-btn" onClick={() => (window as any).electronAPI?.windowControl('minimize')}>
-                    <VscChromeMinimize />
+                    <LuMinus />
                 </div>
                 <div className="window-control-btn" onClick={() => (window as any).electronAPI?.windowControl('maximize')}>
-                    <VscChromeMaximize />
+                    <LuMaximize />
                 </div>
                 <div className="window-control-btn close" onClick={() => (window as any).electronAPI?.windowControl('close')}>
-                    <VscChromeClose />
+                    <LuX />
                 </div>
             </div>
         </div>

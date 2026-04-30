@@ -39,60 +39,39 @@ const { chatCompletion, isConfigured } = require('./llmService');
 const COLON_DIR = '.colon';
 const ANIM_DIR = 'animations';
 
-const SYSTEM_PROMPT = `You are an expert code animation generator for an educational IDE called Colon.
+const SYSTEM_PROMPT = `You are a PRECISE CODE EXECUTION ENGINE and algorithm visualization teacher.
 
-Your job: Given a code block in any programming language, produce a frame-by-frame animation description as JSON that shows how the code executes step by step.
+RULE #1: ACCURACY. Every value, every data structure state MUST be 100% correct — exactly what a real machine would produce. No approximations.
 
-The animation will be rendered as smooth 2D visuals (like Motion Canvas / 3Blue1Brown style). Each frame represents one logical step of execution.
+BEFORE generating frames, mentally execute the code line by line with ACTUAL input values. Track every variable and data structure change.
 
-RULES:
-1. Return ONLY valid JSON — no markdown, no backticks, no commentary outside JSON.
-2. Each frame shows: what line is executing, variable states, any output, and relevant data structure visualizations.
-3. Use vivid colors for variables: #3B82F6 (blue), #8B5CF6 (purple), #14B8A6 (teal), #F59E0B (amber), #EF4444 (red), #EC4899 (pink), #10B981 (green).
-4. Mark variables as "changed": true when their value changes from the previous frame.
-5. For loops: show each iteration as separate frames with the loop variable changing.
-6. For data structures (arrays, stacks, trees): include "visuals" entries showing the structure state.
-7. For function calls: show the call stack in visuals.
-8. Keep captions short (< 80 chars) and educational — explain WHAT is happening and WHY.
-9. Maximum 30 frames. For long loops, show first 3 iterations and last iteration with "..." frame between.
-10. Simulate the code execution accurately — track real values, not placeholders.
+EFFICIENCY RULES:
+- Maximum 15-20 frames total. Be smart about grouping.
+- Group trivial consecutive operations (e.g. multiple simple assignments) into ONE frame.
+- Show EVERY loop iteration that changes data structures, but combine setup steps.
+- For recursion: show key call/return moments, not every single line.
+- Each frame = one MEANINGFUL state change with the EXACT correct values.
 
-JSON SCHEMA:
+CAPTION: Under 10 words. Punchy. Show values: "Swap 5↔2", "Push '('", "i=2: check arr[2]=7"
+
+VISUALS — use multiple per frame when needed:
+- "array": row of boxes | "stack": vertical column | "linkedList": chain | "tree": nodes+edges
+- "grid": 2D matrix | "callStack": call frames | "pointer": index arrows
+- Colors: #3B82F6 (default), #F59E0B (active), #10B981 (done), #EF4444 (error), #8B5CF6 (secondary)
+
+JSON FORMAT (return ONLY this, no markdown, no \`\`\`):
 {
-  "title": "string — short title for the animation",
-  "frames": [
-    {
-      "caption": "string — explain this step",
-      "code": {
-        "source": "string — the full code block",
-        "highlight": [1]  // 1-indexed line numbers to highlight
-      },
-      "variables": [
-        { "name": "x", "value": "5", "color": "#3B82F6", "changed": true }
-      ],
-      "output": ["line1", "line2"],
-      "visuals": [
-        {
-          "type": "array",
-          "label": "my_list",
-          "items": [1, 2, 3],
-          "highlight": [0],
-          "arrows": []
-        }
-      ]
-    }
-  ]
-}
+  "title": "Algorithm title",
+  "frames": [{
+    "caption": "Short explanation",
+    "code": { "source": "", "highlight": [] },
+    "variables": [],
+    "output": [],
+    "visuals": [{ "type": "array", "label": "Label", "items": ["exact","values"], "highlight": [0], "arrows": [] }]
+  }]
+}`;
 
-VISUAL TYPES:
-- "array": horizontal cells (items = values, highlight = indices with emphasis)
-- "stack": vertical pile, top-to-bottom (items = stack values, top = first item)
-- "linkedList": nodes in a chain with arrows between them
-- "callStack": function call stack (items = function names, top = current)
-- "grid": 2D grid (items = flattened row-major, needs "cols" property)
-- "pointer": arrow pointing from one visual to another
 
-Remember: Return ONLY the JSON object. No other text.`;
 
 /**
  * Get cache directory for animation data.
@@ -194,18 +173,26 @@ function clearAnimations(filePath) {
 }
 
 /**
- * Parse retry-after seconds from a Groq/OpenAI rate limit error message.
+ * Parse retry-after seconds from LLM rate limit error messages.
+ * Handles Groq, OpenAI, and Gemini formats.
  */
 function parseRetryAfter(message) {
-    const m = message.match(/try again in ([\d.]+)s/i);
-    return m ? Math.ceil(parseFloat(m[1])) + 1 : 10;
+    // Gemini: "retry in 25.54s"
+    const m1 = message.match(/retry in ([\d.]+)s/i);
+    if (m1) return Math.ceil(parseFloat(m1[1])) + 1;
+    
+    // Groq/OpenAI: "try again in 10s"
+    const m2 = message.match(/try again in ([\d.]+)s/i);
+    if (m2) return Math.ceil(parseFloat(m2[1])) + 1;
+    
+    return 10;
 }
 
 /**
- * Extract JSON from LLM response that may contain markdown fences.
+ * Extract JSON from LLM response that may be truncated mid-stream.
+ * Smart repair: removes the last incomplete frame to ensure valid JSON.
  */
 function extractJSON(text) {
-    // Log first 500 chars for debugging
     console.log('[animationGenerator] Raw LLM response (first 500 chars):', text?.slice(0, 500));
 
     if (!text || typeof text !== 'string') {
@@ -215,7 +202,7 @@ function extractJSON(text) {
     // Strip control characters that break JSON.parse
     let cleaned = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
 
-    // Try raw parse first
+    // Try raw parse first (happy path)
     try { return JSON.parse(cleaned); } catch { /* continue */ }
 
     // Strip markdown fences
@@ -224,25 +211,59 @@ function extractJSON(text) {
         try { return JSON.parse(fenceMatch[1]); } catch { /* continue */ }
     }
 
-    // Try to find JSON object boundaries
+    // Find the JSON object start
     const start = cleaned.indexOf('{');
-    const end = cleaned.lastIndexOf('}');
-    if (start !== -1 && end > start) {
-        const slice = cleaned.slice(start, end + 1);
-        try { return JSON.parse(slice); } catch (e) {
-            // If truncated (missing closing brackets), try to fix
-            let fixed = slice;
-            // Count open/close braces
-            const openBraces = (fixed.match(/{/g) || []).length;
-            const closeBraces = (fixed.match(/}/g) || []).length;
-            const openBrackets = (fixed.match(/\[/g) || []).length;
-            const closeBrackets = (fixed.match(/\]/g) || []).length;
+    if (start === -1) {
+        throw new Error('Could not parse animation JSON from LLM response');
+    }
+    let slice = cleaned.slice(start);
 
-            // Attempt to close unclosed structures
-            for (let i = 0; i < openBrackets - closeBrackets; i++) fixed += ']';
-            for (let i = 0; i < openBraces - closeBraces; i++) fixed += '}';
+    // Try parsing with the last '}' as boundary
+    const end = slice.lastIndexOf('}');
+    if (end !== -1) {
+        try { return JSON.parse(slice.slice(0, end + 1)); } catch { /* continue */ }
+    }
 
-            try { return JSON.parse(fixed); } catch { /* final fail */ }
+    // SMART REPAIR: The LLM ran out of tokens mid-frame.
+    // Strategy: Find the last COMPLETE frame by scanning backwards for a full
+    // "}," or "}" pattern that closes a frame object, then rebuild the JSON.
+    console.warn('[animationGenerator] JSON truncated. Attempting smart repair...');
+
+    // Find the "frames" array start
+    const framesIdx = slice.indexOf('"frames"');
+    if (framesIdx === -1) {
+        throw new Error('Could not parse animation JSON from LLM response');
+    }
+
+    // Find the last complete frame: look for the pattern of a closing brace
+    // followed by optional whitespace then either ',' or end-of-array ']'
+    // Walk backwards through the string to find where the last clean frame ended
+    let repaired = slice;
+
+    // Try progressively cutting the tail until JSON parses
+    // Find all positions of '}' and try each as a potential end of last complete frame
+    const bracePositions = [];
+    for (let i = repaired.length - 1; i >= 0; i--) {
+        if (repaired[i] === '}') bracePositions.push(i);
+        if (bracePositions.length > 20) break; // Only try last 20 brace positions
+    }
+
+    for (const pos of bracePositions) {
+        const candidate = repaired.slice(0, pos + 1);
+        // Close the frames array and root object
+        const attempts = [
+            candidate + ']}',
+            candidate + ']}'  ,
+            candidate + '}]}',
+        ];
+        for (const attempt of attempts) {
+            try {
+                const parsed = JSON.parse(attempt);
+                if (parsed.frames && parsed.frames.length > 0) {
+                    console.warn(`[animationGenerator] Smart repair succeeded: recovered ${parsed.frames.length} frames.`);
+                    return parsed;
+                }
+            } catch { /* try next */ }
         }
     }
 
@@ -299,17 +320,26 @@ async function generateAnimation(filePath, code, language, blockInfo) {
         return cached;
     }
 
-    // Build user prompt
+    // Build user prompt with chain-of-thought forcing
+    const lineCount = code.split('\n').length;
     const userPrompt = `Language: ${language}
 Block type: ${blockInfo?.type || 'unknown'}
-Code:
+Lines: ${lineCount}
+
+Source code to animate:
 \`\`\`${language}
 ${code}
 \`\`\`
 
-Generate the step-by-step animation JSON for this code. Show how each line executes, how variables change, and visualize any data structures.`;
+INSTRUCTIONS:
+1. Mentally execute this code with its ACTUAL input values first.
+2. Generate animation JSON with EXACT correct values at each step.
+3. Use multiple visuals per frame when the algorithm uses multiple data structures.
+4. Keep to 15-20 frames max — group trivial steps.
 
-    console.log(`[animationGenerator] Calling LLM for ${language} block (${code.length} chars)...`);
+Generate the animation JSON now.`;
+
+    console.log(`[animationGenerator] Calling LLM for ${language} block (${code.length} chars, ${lineCount} lines)...`);
 
     let rawResponse;
     let retries = 0;
@@ -318,8 +348,8 @@ Generate the step-by-step animation JSON for this code. Show how each line execu
     while (retries <= MAX_RETRIES) {
         try {
             rawResponse = await chatCompletion(SYSTEM_PROMPT, userPrompt, {
-                temperature: retries === 0 ? 0.3 : 0.1,
-                maxTokens: 4096,
+                temperature: 0.2,
+                maxTokens: 8192,
                 forceJson: true,
             });
 
@@ -336,17 +366,22 @@ Generate the step-by-step animation JSON for this code. Show how each line execu
             const isRateLimit = err.message && (
                 err.message.includes('Rate limit') ||
                 err.message.includes('rate_limit') ||
-                err.message.includes('429')
+                err.message.includes('429') ||
+                err.message.includes('Quota exceeded')
             );
 
             if (retries > MAX_RETRIES) {
                 console.error('[animationGenerator] Failed after retries:', err.message);
-                throw new Error(`Animation generation failed: ${err.message}`);
+                let finalError = err.message;
+                if (err.message.includes('Quota exceeded')) {
+                    finalError = "API Quota Exceeded. The free tier has a daily limit. Please wait for it to reset or switch to a different AI provider in settings.";
+                }
+                throw new Error(`Animation generation failed: ${finalError}`);
             }
 
             if (isRateLimit) {
                 const waitSec = parseRetryAfter(err.message);
-                console.warn(`[animationGenerator] Rate limited. Waiting ${waitSec}s before retry ${retries}...`);
+                console.warn(`[animationGenerator] Rate limited. Waiting ${waitSec}s before retry ${retries}/${MAX_RETRIES}...`);
                 await new Promise(r => setTimeout(r, waitSec * 1000));
             } else {
                 console.warn(`[animationGenerator] Retry ${retries}: ${err.message}`);

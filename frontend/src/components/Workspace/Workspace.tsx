@@ -1,6 +1,7 @@
+import { LuX, LuPlay, LuSquare } from 'react-icons/lu';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Editor from '@monaco-editor/react';
-import { VscClose, VscPlay, VscDebugStop } from 'react-icons/vsc';
+
 import { OpenFile } from '../../App';
 import FileIcon from '../FileIcon/FileIcon';
 import { registerPythonCompletions } from '../../utils/pythonCompletions';
@@ -71,8 +72,8 @@ function Workspace({ openFiles, activeFilePath, setActiveFilePath, onCloseFile, 
         matchBrackets: "always",
         autoClosingBrackets: "always",
         autoClosingQuotes: "always",
-        formatOnPaste: true,
-        formatOnType: true,
+        formatOnPaste: false,
+        formatOnType: false,
         folding: true,
         foldingHighlight: true,
         showFoldingControls: "always",
@@ -360,7 +361,7 @@ function Workspace({ openFiles, activeFilePath, setActiveFilePath, onCloseFile, 
                             <FileIcon fileName={f.name} size={14} className="tab-icon" />
                             <span className="tab-title">{f.isDirty ? '● ' : ''}{f.name}</span>
                             <div className="tab-close-icon" onClick={(e) => { e.stopPropagation(); onCloseFile(f.path); }}>
-                                <VscClose />
+                                <LuX />
                             </div>
                         </div>
                     ))}
@@ -371,11 +372,11 @@ function Workspace({ openFiles, activeFilePath, setActiveFilePath, onCloseFile, 
                     <div className="editor-toolbar">
                         {isRunning ? (
                             <button className="run-btn stop" onClick={onStopRun} title="Stop (Ctrl+Shift+F5)">
-                                <VscDebugStop /> Stop
+                                <LuSquare /> Stop
                             </button>
                         ) : (
                             <button className="run-btn" onClick={onRunFile} title="Run File (Ctrl+F5)">
-                                <VscPlay /> Run
+                                <LuPlay /> Run
                             </button>
                         )}
                     </div>
@@ -388,8 +389,8 @@ function Workspace({ openFiles, activeFilePath, setActiveFilePath, onCloseFile, 
                     path={activeFile.path}
                     height="100%"
                     language={activeFile.language}
-                    theme="custom-black"
-                    value={activeFile.content}
+                    theme="vs-dark"
+                    defaultValue={activeFile.content}
                     onChange={handleEditorChange}
                     beforeMount={handleEditorWillMount}
                     onMount={handleEditorDidMount}
