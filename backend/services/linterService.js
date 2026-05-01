@@ -7,6 +7,9 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
+/** On Windows, node_modules/.bin scripts have a .cmd wrapper */
+const BIN_EXT = process.platform === 'win32' ? '.cmd' : '';
+
 function runCmd(cmd, args) {
     return new Promise((resolve) => {
         execFile(cmd, args, { timeout: 3000 }, (error, stdout, stderr) => {
@@ -179,7 +182,7 @@ async function lintCode(fileName, content) {
 
     try {
         if (ext === '.py') {
-            const pyrightBin = path.join(__dirname, '..', 'node_modules', '.bin', 'pyright');
+            const pyrightBin = path.join(__dirname, '..', 'node_modules', '.bin', 'pyright' + BIN_EXT);
             const result = await runCmd(pyrightBin, ['--outputjson', tmpFile]);
             markers = parsePyright(result.stdout);
 
@@ -193,7 +196,7 @@ async function lintCode(fileName, content) {
             markers = parseJavac(result.stderr, tmpFile);
 
         } else if (ext === '.ts' || ext === '.tsx') {
-            const tscBin = path.join(__dirname, '..', 'node_modules', '.bin', 'tsc');
+            const tscBin = path.join(__dirname, '..', 'node_modules', '.bin', 'tsc' + BIN_EXT);
             // --noEmit: type-check only, --strict: full strictness, --allowJs: for .tsx
             const result = await runCmd(tscBin, [
                 '--noEmit', '--strict', '--allowJs', '--jsx', 'react',
@@ -211,7 +214,7 @@ async function lintCode(fileName, content) {
             if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
             const result = await runCmd('rustc', [
                 '--error-format=human', '--edition', '2021',
-                '-o', path.join(outDir, 'out'), tmpFile
+                '-o', path.join(outDir, 'out' + (process.platform === 'win32' ? '.exe' : '')), tmpFile
             ]);
             markers = parseRustc((result.stderr || '') + (result.stdout || ''), tmpFile);
         }

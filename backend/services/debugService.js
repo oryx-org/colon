@@ -30,7 +30,7 @@ class DebugService {
         let cmd;
         let args;
         if (resolvedLanguage === 'python') {
-            cmd = options.pythonCommand || 'python3';
+            cmd = options.pythonCommand || (process.platform === 'win32' ? 'python' : 'python3');
             args = ['-m', 'pdb', filePath];
         } else if (resolvedLanguage === 'javascript') {
             cmd = options.nodeCommand || 'node';
@@ -166,7 +166,7 @@ class DebugService {
         if (!session) return { success: false, error: 'Session not found' };
 
         try {
-            session.child.kill('SIGTERM');
+            process.platform === 'win32' ? session.child.kill() : session.child.kill('SIGTERM');
             this.activeSessions.delete(sessionId);
             return { success: true };
         } catch (err) {

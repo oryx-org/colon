@@ -22,7 +22,7 @@ function getRunConfig(filePath, runtimeId, runtimeCommand) {
 
     const configs = {
         python: {
-            cmd: runtimeCommand || 'python3',
+            cmd: runtimeCommand || (process.platform === 'win32' ? 'python' : 'python3'),
             args: [filePath],
             needsCompile: false
         },
@@ -39,18 +39,18 @@ function getRunConfig(filePath, runtimeId, runtimeCommand) {
         gcc: {
             needsCompile: true,
             compileCmd: runtimeCommand || 'gcc',
-            compileArgs: [filePath, '-o', path.join(outDir, baseName), '-lm'],
-            cmd: path.join(outDir, baseName),
+            compileArgs: [filePath, '-o', path.join(outDir, baseName + (process.platform === 'win32' ? '.exe' : '')), '-lm'],
+            cmd: path.join(outDir, baseName + (process.platform === 'win32' ? '.exe' : '')),
             args: [],
-            outputFile: path.join(outDir, baseName)
+            outputFile: path.join(outDir, baseName + (process.platform === 'win32' ? '.exe' : ''))
         },
         gpp: {
             needsCompile: true,
             compileCmd: runtimeCommand || 'g++',
-            compileArgs: [filePath, '-o', path.join(outDir, baseName), '-lstdc++'],
-            cmd: path.join(outDir, baseName),
+            compileArgs: [filePath, '-o', path.join(outDir, baseName + (process.platform === 'win32' ? '.exe' : '')), '-lstdc++'],
+            cmd: path.join(outDir, baseName + (process.platform === 'win32' ? '.exe' : '')),
             args: [],
-            outputFile: path.join(outDir, baseName)
+            outputFile: path.join(outDir, baseName + (process.platform === 'win32' ? '.exe' : ''))
         },
         java: {
             needsCompile: true,
@@ -68,10 +68,10 @@ function getRunConfig(filePath, runtimeId, runtimeCommand) {
         rust: {
             needsCompile: true,
             compileCmd: runtimeCommand || 'rustc',
-            compileArgs: [filePath, '-o', path.join(outDir, baseName)],
-            cmd: path.join(outDir, baseName),
+            compileArgs: [filePath, '-o', path.join(outDir, baseName + (process.platform === 'win32' ? '.exe' : ''))],
+            cmd: path.join(outDir, baseName + (process.platform === 'win32' ? '.exe' : '')),
             args: [],
-            outputFile: path.join(outDir, baseName)
+            outputFile: path.join(outDir, baseName + (process.platform === 'win32' ? '.exe' : ''))
         }
     };
 
@@ -157,7 +157,7 @@ function runCode(filePath, runtimeId, runtimeCommand, onOutput) {
         });
 
         return () => {
-            try { proc.kill('SIGTERM'); } catch { }
+            try { process.platform === 'win32' ? proc.kill() : proc.kill('SIGTERM'); } catch { }
         };
     };
 

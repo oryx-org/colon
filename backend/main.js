@@ -348,7 +348,7 @@ ipcMain.handle('env:cancelRuntimeInstall', async (event, installId) => {
         if (!proc) {
             return { success: false, reason: 'No active install process found.' };
         }
-        proc.kill('SIGTERM');
+        process.platform === 'win32' ? proc.kill() : proc.kill('SIGTERM');
         return { success: true };
     } catch (err) {
         return { success: false, reason: err.message };

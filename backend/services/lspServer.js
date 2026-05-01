@@ -2,6 +2,9 @@ const WebSocket = require('ws');
 const { spawn, execFileSync } = require('child_process');
 const path = require('path');
 
+/** On Windows, node_modules/.bin scripts have a .cmd wrapper */
+const BIN_EXT = process.platform === 'win32' ? '.cmd' : '';
+
 let wss = null;
 
 /** Find a binary on PATH, returns null if not found */
@@ -38,13 +41,13 @@ function startLspServer() {
         let lsProcess = null;
 
         if (lang === 'python') {
-            const pyrightBin = path.join(__dirname, '..', 'node_modules', '.bin', 'pyright-langserver');
+            const pyrightBin = path.join(__dirname, '..', 'node_modules', '.bin', 'pyright-langserver' + BIN_EXT);
             lsProcess = spawn(pyrightBin, ['--stdio']);
             console.log('[lspServer.js] Spawned pyright-langserver');
 
         } else if (lang === 'javascript' || lang === 'typescript' ||
                    lang === 'javascriptreact' || lang === 'typescriptreact') {
-            const tslsBin = path.join(__dirname, '..', 'node_modules', '.bin', 'typescript-language-server');
+            const tslsBin = path.join(__dirname, '..', 'node_modules', '.bin', 'typescript-language-server' + BIN_EXT);
             lsProcess = spawn(tslsBin, ['--stdio'], {
                 env: { ...process.env, TSS_LOG: '' }
             });

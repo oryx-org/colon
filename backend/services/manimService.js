@@ -28,7 +28,7 @@ function cancelManimVideo() {
     isCancelled = true;
     if (currentProc) {
         console.log('[manimService] Cancelling active Manim render...');
-        currentProc.kill('SIGTERM');
+        process.platform === 'win32' ? currentProc.kill() : currentProc.kill('SIGTERM');
         currentProc = null;
     }
 }
@@ -302,9 +302,10 @@ function runManim(scenePath, workDir) {
             SCENE_CLASS,
         ];
 
-        console.log(`[manimService] Running: python3 ${args.join(' ')}`);
+        const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+        console.log(`[manimService] Running: ${pythonCmd} ${args.join(' ')}`);
 
-        currentProc = spawn('python3', args, {
+        currentProc = spawn(pythonCmd, args, {
             cwd: workDir,
             timeout: 120000,    // 2 minute max
             env: { ...process.env },
@@ -340,7 +341,8 @@ function runManim(scenePath, workDir) {
                 reject(new Error('Cancelled'));
                 return;
             }
-            reject(new Error(`Failed to start manim: ${err.message}. Is manim installed? (python3 -m pip install manim)`));
+            const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+            reject(new Error(`Failed to start manim: ${err.message}. Is manim installed? (${pythonCmd} -m pip install manim)`));
         });
     });
 }
@@ -395,7 +397,8 @@ function extractPython(text) {
  */
 function validatePythonSyntax(filePath) {
     return new Promise((resolve) => {
-        const proc = spawn('python3', ['-c', `
+        const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+        const proc = spawn(pythonCmd, ['-c', `
 import ast, sys
 try:
     with open(sys.argv[1]) as f:
