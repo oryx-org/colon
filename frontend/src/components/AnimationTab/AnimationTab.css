@@ -458,3 +458,44 @@
 .spin-icon {
     animation: spin 1s linear infinite;
 }
+
+/* ── Engine Install Awareness Banner ── */
+.engine-install-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    background: rgba(245, 158, 11, 0.08);
+    border: 1px solid rgba(245, 158, 11, 0.25);
+    border-radius: 6px;
+    color: var(--text-secondary);
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+.engine-install-banner > svg {
+    flex-shrink: 0;
+    margin-top: 2px;
+    color: #f59e0b;
+}
+
+.engine-install-banner-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.engine-install-banner-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #f59e0b;
+}
+
+.engine-install-banner-msg {
+    color: var(--text-muted);
+    font-size: 11px;
+}
+
+.engine-install-banner-msg strong {
+    color: var(--text-secondary);
+}

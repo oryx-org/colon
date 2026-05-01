@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
     // File system — dialogs
     openDirectory: () => ipcRenderer.invoke('dialog:openDirectory'),
+    openFile: () => ipcRenderer.invoke('dialog:openFile'),
 
     // File system — CRUD
     readDirectory: (dirPath) => ipcRenderer.invoke('fs:readDirectory', dirPath),
@@ -78,7 +79,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
         cancel: () => ipcRenderer.invoke('animation:cancel'),
     },
 
-    // Manim Video System
+    // Video Generation System
     manim: {
         generate: (filePath, code, language) =>
             ipcRenderer.invoke('manim:generate', { filePath, code, language }),
@@ -86,5 +87,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
         loadVideos: (filePath) => ipcRenderer.invoke('manim:loadVideos', filePath),
         deleteVideo: (filePath, videoId) =>
             ipcRenderer.invoke('manim:delete', { filePath, videoId }),
+    },
+
+    // Colon Animation Engine
+    animEngine: {
+        check: () => ipcRenderer.invoke('animEngine:check'),
+        install: () => ipcRenderer.invoke('animEngine:install'),
+        onInstallProgress: (callback) => {
+            ipcRenderer.on('animEngine:install:progress', (event, msg) => callback(msg));
+        },
+        removeInstallListeners: () => {
+            ipcRenderer.removeAllListeners('animEngine:install:progress');
+        },
     },
 });

@@ -54,7 +54,8 @@ const TerminalPanel = forwardRef<TerminalPanelRef, TerminalPanelProps>(({ onClos
     /** Add a brand-new terminal in its own group */
     const createTerminal = useCallback(() => {
         const id = uid();
-        const name = `bash ${termCounter}`;
+        const shellName = (window as any).electronAPI?.platform === 'win32' ? 'cmd' : 'bash';
+        const name = `${shellName} ${termCounter}`;
         const groupId = gid();
 
         setEntries(prev => [...prev, { id, name }]);
@@ -68,7 +69,8 @@ const TerminalPanel = forwardRef<TerminalPanelRef, TerminalPanelProps>(({ onClos
         const agid = activeGroupId;
         if (!agid) return createTerminal();
         const id = uid();
-        const name = `bash ${termCounter}`;
+        const shellName = (window as any).electronAPI?.platform === 'win32' ? 'cmd' : 'bash';
+        const name = `${shellName} ${termCounter}`;
 
         setEntries(prev => [...prev, { id, name }]);
         setGroups(prev => prev.map(g =>

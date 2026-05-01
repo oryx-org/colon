@@ -100,6 +100,7 @@ function App() {
   const [manimVideosByFile, setManimVideosByFile] = useState<Record<string, any[]>>({});
   const [isManimRendering, setIsManimRendering] = useState(false);
   const [manimError, setManimError] = useState<string | null>(null);
+  const [animEngineInstalled, setAnimEngineInstalled] = useState(false);
 
   // Derive current file's data
   const animations = activeFilePath ? (animsByFile[activeFilePath] || []) : [];
@@ -209,6 +210,12 @@ function App() {
           setLlmConfigured(status?.configured || false);
           console.log('[App] LLM status:', status);
         });
+      }
+      // Check animation engine status
+      if (api.animEngine?.check) {
+          api.animEngine.check().then((status: any) => {
+              setAnimEngineInstalled(status?.installed || false);
+          });
       }
     }
   }, [refreshEnvironments]);
@@ -446,6 +453,9 @@ function App() {
         setLeftTab('folder');
         window.dispatchEvent(new CustomEvent('explorer-action', { detail: 'openFolder' }));
         break;
+      case 'openFile':
+        window.dispatchEvent(new CustomEvent('explorer-action', { detail: 'openFile' }));
+        break;
       case 'saveFile':
         saveActiveFile();
         break;
@@ -646,7 +656,8 @@ function App() {
 
   /** When a file is renamed in the explorer, update open tabs to match */
   const handleFileRenamed = (oldPath: string, newPath: string) => {
-    const newName = newPath.substring(newPath.lastIndexOf('/') + 1);
+    const sepIdx = Math.max(newPath.lastIndexOf('/'), newPath.lastIndexOf('\\'));
+    const newName = newPath.substring(sepIdx + 1);
     const ext = newName.substring(newName.lastIndexOf('.') + 1).toLowerCase();
     const languageMap: Record<string, string> = {
       'js': 'javascript', 'jsx': 'javascript', 'ts': 'typescript', 'tsx': 'typescript',
@@ -664,7 +675,8 @@ function App() {
         return { ...f, path: newPath, name: newName, language: newLang };
       }
       // If a folder was renamed, update all children
-      if (f.path.startsWith(oldPath + '/')) {
+      // Check both / and \ separators for cross-platform support
+      if (f.path.startsWith(oldPath + '/') || f.path.startsWith(oldPath + '\\')) {
         const updatedPath = newPath + f.path.substring(oldPath.length);
         return { ...f, path: updatedPath };
       }
@@ -674,7 +686,7 @@ function App() {
     // Update active file path if needed
     if (activeFilePath === oldPath) {
       setActiveFilePath(newPath);
-    } else if (activeFilePath?.startsWith(oldPath + '/')) {
+    } else if (activeFilePath?.startsWith(oldPath + '/') || activeFilePath?.startsWith(oldPath + '\\')) {
       setActiveFilePath(newPath + activeFilePath.substring(oldPath.length));
     }
   };
@@ -864,6 +876,7 @@ function App() {
           onCancelAnimation={handleCancelAnimation}
           onCancelManimVideo={handleCancelManimVideo}
           activeFileLineCount={activeFileLineCount}
+          animEngineInstalled={animEngineInstalled}
         />
       </div>
     </div>

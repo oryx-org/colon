@@ -200,7 +200,7 @@ INSTRUCTIONS:
         }
 
         if (!manimScript) {
-            throw new Error('Failed to generate Manim script from LLM');
+            throw new Error('Failed to generate animation script from AI');
         }
 
         // Ensure script has the correct class name
@@ -259,7 +259,7 @@ INSTRUCTIONS:
         }
 
         if (!videoPath) {
-            throw new Error('Manim render completed but no MP4 file was found');
+            throw new Error('Video render completed but no MP4 file was found');
         }
 
         // Step 5: Save metadata
@@ -332,7 +332,7 @@ function runManim(scenePath, workDir) {
                 resolve({ stdout, stderr });
             } else {
                 console.error('[manimService] Manim stderr:', stderr.slice(-500));
-                reject(new Error(`Manim render failed (exit code ${code}): ${stderr.slice(-300)}`));
+                reject(new Error(`Video render failed (exit code ${code}): ${stderr.slice(-300)}`));
             }
         });
 
@@ -341,8 +341,7 @@ function runManim(scenePath, workDir) {
                 reject(new Error('Cancelled'));
                 return;
             }
-            const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
-            reject(new Error(`Failed to start manim: ${err.message}. Is manim installed? (${pythonCmd} -m pip install manim)`));
+            reject(new Error(`Colon Animation Engine is not installed. Install it from the Extensions tab in the sidebar.`));
         });
     });
 }

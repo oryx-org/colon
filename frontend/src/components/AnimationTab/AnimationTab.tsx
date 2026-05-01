@@ -1,4 +1,4 @@
-import { LuTrash2, LuCode, LuSparkles, LuCircleAlert, LuFilm, LuLoader } from 'react-icons/lu';
+import { LuTrash2, LuCode, LuSparkles, LuCircleAlert, LuFilm, LuLoader, LuDownload } from 'react-icons/lu';
 import { useState, useEffect } from 'react';
 
 
@@ -29,7 +29,7 @@ interface AnimationTabProps {
     llmConfigured: boolean;
     animError?: string | null;
     activeFileName?: string;
-    // Manim props
+    // Video generation props
     manimVideos?: ManimVideo[];
     isManimRendering?: boolean;
     manimError?: string | null;
@@ -38,6 +38,7 @@ interface AnimationTabProps {
     onCancelAnimation?: () => void;
     onCancelManimVideo?: () => void;
     activeFileLineCount?: number;
+    animEngineInstalled?: boolean;
 }
 
 const MAX_MANIM_LINES = 200;
@@ -45,7 +46,7 @@ const MAX_MANIM_LINES = 200;
 function AnimationTab({
     animations, isGenerating, onDeleteAnimation, onClearAll, llmConfigured, animError, activeFileName,
     manimVideos = [], isManimRendering = false, manimError, onGenerateManimVideo, onDeleteManimVideo,
-    onCancelAnimation, onCancelManimVideo, activeFileLineCount = 0
+    onCancelAnimation, onCancelManimVideo, activeFileLineCount = 0, animEngineInstalled = false
 }: AnimationTabProps) {
     const canGenerateVideo = llmConfigured && activeFileName && activeFileLineCount > 0 && activeFileLineCount <= MAX_MANIM_LINES;
 
@@ -111,6 +112,19 @@ function AnimationTab({
                     </div>
 
                     {onGenerateManimVideo && (
+                        <>
+                        {/* ── First-use awareness: install engine banner ── */}
+                        {!animEngineInstalled && (
+                            <div className="engine-install-banner">
+                                <LuDownload size={14} />
+                                <div className="engine-install-banner-content">
+                                    <span className="engine-install-banner-title">Setup Required</span>
+                                    <span className="engine-install-banner-msg">
+                                        Install the <strong>Colon Animation Engine</strong> from the <strong>Extensions</strong> tab to generate videos.
+                                    </span>
+                                </div>
+                            </div>
+                        )}
                         <button
                             className="manim-generate-btn"
                             onClick={onGenerateManimVideo}
@@ -118,7 +132,7 @@ function AnimationTab({
                             title={
                                 !activeFileName ? 'Open a file first' :
                                 activeFileLineCount > MAX_MANIM_LINES ? `File too long (${activeFileLineCount}/${MAX_MANIM_LINES} lines)` :
-                                !llmConfigured ? 'Configure AI Service in backend settings' :
+                                !llmConfigured ? 'Configure AI Service in backend/.env' :
                                 isManimRendering ? 'Rendering in progress...' :
                                 'Generate High-Quality Video for this file'
                             }
@@ -142,6 +156,7 @@ function AnimationTab({
                                 <><LuFilm size={14} /> Generate Video</>
                             )}
                         </button>
+                        </>
                     )}
 
                     {activeFileLineCount > MAX_MANIM_LINES && activeFileName && (
@@ -156,7 +171,13 @@ function AnimationTab({
                                 <LuCircleAlert size={16} className="error-icon" />
                                 <div className="error-content">
                                     <span className="error-title">Video Generation Failed</span>
-                                    <span className="error-message">{manimError}</span>
+                                    <span className="error-message">
+                                        {manimError.includes('not installed') || manimError.includes('exit code') || manimError.includes('ENOENT') || manimError.includes('Failed to start') ? (
+                                            <>Colon Animation Engine is not installed. Go to the <strong>Extensions tab</strong> (sidebar) to install it.</>
+                                        ) : (
+                                            manimError
+                                        )}
+                                    </span>
                                 </div>
                             </div>
                         </div>

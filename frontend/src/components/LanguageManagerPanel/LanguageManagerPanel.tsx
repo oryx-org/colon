@@ -27,6 +27,18 @@ export default function LanguageManagerPanel() {
     const [isLoading, setIsLoading] = useState(true);
     const [installProgress, setInstallProgress] = useState<Record<string, InstallProgress>>({});
 
+    const [animEngineStatus, setAnimEngineStatus] = useState<{
+        installed: boolean;
+        pythonFound?: boolean;
+        engineFound?: boolean;
+        ffmpegFound?: boolean;
+        engineVersion?: string | null;
+        details?: string;
+    } | null>(null);
+    const [animEngineInstalling, setAnimEngineInstalling] = useState(false);
+    const [animEngineInstallLogs, setAnimEngineInstallLogs] = useState('');
+    const [animEngineInstallResult, setAnimEngineInstallResult] = useState<'success' | 'failed' | null>(null);
+
     const electron = (window as any).electronAPI;
 
     const loadEnvironments = async () => {
@@ -58,6 +70,22 @@ export default function LanguageManagerPanel() {
     useEffect(() => {
         loadEnvironments();
         
+        if (electron?.animEngine?.check) {
+            electron.animEngine.check().then((status: any) => {
+                setAnimEngineStatus(status);
+            });
+        }
+        
+        if (electron?.animEngine?.onInstallProgress) {
+            electron.animEngine.onInstallProgress((msg: string) => {
+                setAnimEngineInstallLogs(prev => {
+                    const next = prev + msg;
+                    // Cap at ~50KB to prevent React re-render slowdown
+                    return next.length > 50000 ? next.slice(-40000) : next;
+                });
+            });
+        }
+
         if (electron?.onRuntimeInstallEvent) {
             electron.onRuntimeInstallEvent((payload: any) => {
                 setInstallProgress(prev => {
@@ -78,6 +106,9 @@ export default function LanguageManagerPanel() {
         return () => {
             if (electron?.removeRuntimeInstallListeners) {
                 electron.removeRuntimeInstallListeners();
+            }
+            if (electron?.animEngine?.removeInstallListeners) {
+                electron.animEngine.removeInstallListeners();
             }
         };
     }, []);
@@ -107,16 +138,100 @@ export default function LanguageManagerPanel() {
         }
     };
 
+    const handleInstallAnimEngine = async () => {
+        if (!electron?.animEngine?.install) return;
+        setAnimEngineInstalling(true);
+        setAnimEngineInstallLogs('');
+        setAnimEngineInstallResult(null);
+        try {
+            const result = await electron.animEngine.install();
+            if (result.success) {
+                setAnimEngineInstallResult('success');
+                const status = await electron.animEngine.check();
+                setAnimEngineStatus(status);
+            } else {
+                setAnimEngineInstallResult('failed');
+                setAnimEngineInstallLogs(prev => prev + '\n' + (result.error || 'Unknown error'));
+            }
+        } catch (e: any) {
+            setAnimEngineInstallResult('failed');
+            setAnimEngineInstallLogs(prev => prev + '\n' + e.message);
+        } finally {
+            setAnimEngineInstalling(false);
+        }
+    };
+
     return (
         <div className="language-manager">
             <div className="lm-header">
-                <span className="lm-title">EXTENSIONS (LANGUAGES)</span>
+                <span className="lm-title">EXTENSIONS</span>
                 <button className="lm-refresh-btn" onClick={scanEnvironments} title="Scan for Runtimes" disabled={isLoading}>
                     <LuRefreshCw className={isLoading ? 'spinning' : ''} />
                 </button>
             </div>
             
             <div className="lm-content">
+                {/* ── Colon Animation Engine Section ── */}
+                <div className="lm-section-label">TOOLS & ENGINES</div>
+
+                <div className="lm-card lm-card-engine">
+                    <div className="lm-card-header">
+                        <h3 className="lm-card-title">Colon Animation Engine</h3>
+                        {animEngineStatus?.installed ? (
+                            <span className="lm-badge success"><LuCheck /> Installed</span>
+                        ) : (
+                            <span className="lm-badge missing">Not Installed</span>
+                        )}
+                    </div>
+
+                    <div className="lm-card-details">
+                        {animEngineStatus?.installed ? (
+                            <>
+                                <div><span className="lm-label">Version: </span>{animEngineStatus.engineVersion || 'unknown'}</div>
+                            </>
+                        ) : (
+                            <div className="lm-not-installed-msg">
+                                {animEngineStatus?.details || 'Required for generating code execution videos and animations.'}
+                            </div>
+                        )}
+
+                        {animEngineInstallResult === 'success' && (
+                            <div className="lm-success-msg">
+                                ✅ Installed successfully! Please restart the IDE to activate.
+                            </div>
+                        )}
+
+                        {animEngineInstallResult === 'failed' && (
+                            <div className="lm-error">
+                                <LuCircleX /> Installation failed. Check logs below.
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Install logs */}
+                    {(animEngineInstalling || animEngineInstallLogs) && (
+                        <pre className="lm-install-logs">
+                            {animEngineInstallLogs || 'Starting installation...'}
+                        </pre>
+                    )}
+
+                    <div className="lm-card-actions">
+                        {!animEngineStatus?.installed && (
+                            <button
+                                className="lm-install-btn"
+                                onClick={handleInstallAnimEngine}
+                                disabled={animEngineInstalling || !animEngineStatus?.pythonFound}
+                                title={!animEngineStatus?.pythonFound ? 'Install Python first' : 'Install Colon Animation Engine'}
+                            >
+                                <LuCloudDownload /> {animEngineInstalling ? 'Installing...' : 'Install'}
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                {/* ── Languages Section Label ── */}
+                <div className="lm-section-label">LANGUAGES</div>
+
                 {Object.values(environments).map(env => {
                     const progress = installProgress[env.id];
                     const isInstalling = progress?.status === 'installing';

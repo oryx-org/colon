@@ -185,3 +185,48 @@
     background-color: var(--bg-hover);
     color: var(--text-muted);
 }
+
+/* ── Section Labels ── */
+.lm-section-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    padding: 4px 0;
+    margin-top: 4px;
+    opacity: 0.7;
+}
+
+/* ── Engine Card (special styling) ── */
+.lm-card-engine {
+    border-color: var(--accent-primary);
+    border-width: 1px;
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(255, 255, 255, 0.03) 100%);
+}
+
+/* ── Success message ── */
+.lm-success-msg {
+    color: #4ade80;
+    background-color: rgba(74, 222, 128, 0.1);
+    padding: 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+/* ── Install Logs ── */
+.lm-install-logs {
+    background-color: rgba(0, 0, 0, 0.3);
+    color: var(--text-secondary);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    line-height: 1.4;
+    padding: 8px;
+    border-radius: 4px;
+    max-height: 150px;
+    overflow-y: auto;
+    margin: 4px 0;
+    white-space: pre-wrap;
+    word-break: break-all;
+}

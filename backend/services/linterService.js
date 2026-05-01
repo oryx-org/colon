@@ -38,7 +38,7 @@ function parsePyright(output) {
 
 function parseGcc(output, tmpFile) {
     const markers = [];
-    const lines = output.split('\n');
+    const lines = output.split(/\r?\n/);
     // Regex: filename:line:column: error/warning: message
     const regex = new RegExp(`${escapeRegExp(tmpFile)}:(\\d+):(\\d+):\\s*(error|warning):\\s*(.*)`);
 
@@ -61,7 +61,7 @@ function parseGcc(output, tmpFile) {
 
 function parseJavac(output, tmpFile) {
     const markers = [];
-    const lines = output.split('\n');
+    const lines = output.split(/\r?\n/);
     // Regex: filename:line: error: message
     const regex = new RegExp(`${escapeRegExp(tmpFile)}:(\\d+):\\s*error:\\s*(.*)`);
 
@@ -84,7 +84,7 @@ function parseJavac(output, tmpFile) {
 
 function parseTsc(output, tmpFile) {
     const markers = [];
-    const lines = output.split('\n');
+    const lines = output.split(/\r?\n/);
     // TSC output: file(line,col): error TS<code>: message
     const regex = /\((\d+),(\d+)\):\s*(error|warning)\s+TS\d+:\s*(.*)/;
     for (const line of lines) {
@@ -106,7 +106,7 @@ function parseTsc(output, tmpFile) {
 
 function parseGoVet(output) {
     const markers = [];
-    const lines = output.split('\n');
+    const lines = output.split(/\r?\n/);
     // go vet: ./file.go:line:col: message
     const regex = /[^:]+:(\d+):(\d+):\s*(.*)/;
     for (const line of lines) {
@@ -128,7 +128,7 @@ function parseGoVet(output) {
 
 function parseRustc(output, tmpFile) {
     const markers = [];
-    const lines = output.split('\n');
+    const lines = output.split(/\r?\n/);
     // rustc: error[Exx]: message -> file:line:col
     const regex = /--> [^:]+:(\d+):(\d+)/;
     let pendingMsg = '';

@@ -151,12 +151,12 @@ export default function SourceControlPanel({ onFileClick }: SourceControlPanelPr
                             <div key={idx} className="sc-file-item">
                                 <div 
                                     className="sc-file-name" 
-                                    onClick={() => onFileClick(item.file, item.file.split('/').pop() || item.file)}
+                                    onClick={() => onFileClick(item.file, item.file.split(/[\/\\]/).pop() || item.file)}
                                 >
                                     <span className="sc-file-status" style={{ color: statusColor }}>
                                         {item.status.trim().charAt(0)}
                                     </span>
-                                    <span>{item.file.split('/').pop()}</span>
+                                    <span>{item.file.split(/[\/\\]/).pop()}</span>
                                     <span className="sc-file-path">{item.file}</span>
                                 </div>
                                 <div className="sc-file-actions">

@@ -1,4 +1,4 @@
-import { LuChevronRight, LuChevronDown, LuFilePlus, LuFolderPlus, LuRefreshCw, LuShrink, LuTrash2, LuFolder, LuPencil } from 'react-icons/lu';
+import { LuChevronRight, LuChevronDown, LuFilePlus, LuFolderPlus, LuRefreshCw, LuShrink, LuTrash2, LuFolder, LuPencil, LuFileSearch } from 'react-icons/lu';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import FileIcon from '../FileIcon/FileIcon';
 import './ExplorerPanel.css';
@@ -27,6 +27,16 @@ interface ExplorerPanelProps {
 
 /* ── Helpers ── */
 const electron = () => (window as any).electronAPI;
+
+/** Get the last path separator index, works with both / and \\ */
+function lastSepIndex(p: string): number {
+    return Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\'));
+}
+
+/** Get the platform path separator */
+function pathSep(): string {
+    return (window as any).electronAPI?.platform === 'win32' ? '\\' : '/';
+}
 
 /** Recursively update a tree node matched by path */
 function updateTree(nodes: FileNode[], targetPath: string, updater: (n: FileNode) => FileNode): FileNode[] {
@@ -79,11 +89,26 @@ function ExplorerPanel({ onFileClick, onFileRenamed }: ExplorerPanelProps) {
         return () => document.removeEventListener('click', handler);
     }, [contextMenu]);
 
+    // ── Open individual files via native dialog
+    const handleOpenFile = async () => {
+        if (!electron()) return;
+        const filePaths = await electron().openFile();
+        if (filePaths && filePaths.length > 0) {
+            for (const fp of filePaths) {
+                const sep = fp.lastIndexOf('/') !== -1 ? '/' : '\\';
+                const name = fp.substring(fp.lastIndexOf(sep) + 1);
+                onFileClick(fp, name);
+            }
+        }
+    };
+
     // ── Listen for global explorer actions
     useEffect(() => {
         const handleExplorerAction = (e: any) => {
             if (e.detail === 'openFolder') {
                 handleOpenFolder();
+            } else if (e.detail === 'openFile') {
+                handleOpenFile();
             } else if (e.detail === 'newFile') {
                 startCreate(false);
             }
@@ -201,7 +226,7 @@ function ExplorerPanel({ onFileClick, onFileRenamed }: ExplorerPanelProps) {
                     }
                 } else {
                     // Selected a file → create in its parent folder
-                    parentPath = node.path.substring(0, node.path.lastIndexOf('/'));
+                    parentPath = node.path.substring(0, lastSepIndex(node.path));
                 }
             }
         }
@@ -212,7 +237,7 @@ function ExplorerPanel({ onFileClick, onFileRenamed }: ExplorerPanelProps) {
 
     /** Start inline rename */
     const startRename = (node: FileNode) => {
-        const parentPath = node.path.substring(0, node.path.lastIndexOf('/'));
+        const parentPath = node.path.substring(0, lastSepIndex(node.path));
         setInlineInput({
             parentPath,
             isDirectory: node.isDirectory,
@@ -234,7 +259,7 @@ function ExplorerPanel({ onFileClick, onFileRenamed }: ExplorerPanelProps) {
         const api = electron();
         if (!api) { setInlineInput(null); return; }
 
-        const newPath = `${inlineInput.parentPath}/${inputValue.trim()}`;
+        const newPath = `${inlineInput.parentPath}${pathSep()}${inputValue.trim()}`;
         let success = false;
 
         if (inlineInput.type === 'create') {
@@ -430,6 +455,7 @@ function ExplorerPanel({ onFileClick, onFileRenamed }: ExplorerPanelProps) {
             <div className="explorer-header">
                 <span className="explorer-title">EXPLORER</span>
                 <div className="explorer-actions">
+                    <button className="explorer-btn" title="Open File" onClick={handleOpenFile}><LuFileSearch /></button>
                     <button className="explorer-btn" title="New File" onClick={() => startCreate(false)}><LuFilePlus /></button>
                     <button className="explorer-btn" title="New Folder" onClick={() => startCreate(true)}><LuFolderPlus /></button>
                     <button className="explorer-btn" title="Refresh Explorer" onClick={refreshTree}><LuRefreshCw /></button>
@@ -443,6 +469,7 @@ function ExplorerPanel({ onFileClick, onFileRenamed }: ExplorerPanelProps) {
                     <div className="empty-state">
                         <p>You have not yet opened a folder.</p>
                         <button className="primary-btn" onClick={handleOpenFolder}>Open Folder</button>
+                        <button className="secondary-btn" onClick={handleOpenFile} style={{ marginTop: 8 }}>Open File</button>
                     </div>
                 ) : (
                     <div className="file-tree">

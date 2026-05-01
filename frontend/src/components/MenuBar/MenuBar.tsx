@@ -15,6 +15,7 @@ const menus: Record<string, { label: string; shortcut?: string; action?: string;
         { label: 'New Window', shortcut: 'Ctrl+Shift+N', action: 'newWindow' },
         { label: '', separator: true },
         { label: 'Open Folder…', shortcut: 'Ctrl+K Ctrl+O', action: 'openFolder' },
+        { label: 'Open File…', shortcut: 'Ctrl+O', action: 'openFile' },
         { label: '', separator: true },
         { label: 'Save', shortcut: 'Ctrl+S', action: 'saveFile' },
         { label: 'Save All', shortcut: 'Ctrl+K S', action: 'saveAllFiles' },

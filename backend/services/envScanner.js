@@ -72,8 +72,10 @@ const RUNTIMES = [
         // Compile then run — binary goes to temp dir so source dir stays clean
         runTemplate: (cmd, filePath) => {
             const baseName = path.basename(filePath, path.extname(filePath));
-            const outPath = path.join(os.tmpdir(), 'colon-runner', baseName);
-            return `${cmd} "${filePath}" -o "${outPath}" -lm && "${outPath}"`;
+            const ext = process.platform === 'win32' ? '.exe' : '';
+            const outPath = path.join(os.tmpdir(), 'colon-runner', baseName + ext);
+            const chain = '&&';
+            return `${cmd} "${filePath}" -o "${outPath}" -lm ${chain} "${outPath}"`;
         },
         installCmd: {
             linux: 'sudo apt-get install -y build-essential',
@@ -93,8 +95,10 @@ const RUNTIMES = [
         extensions: ['.cpp', '.cc', '.cxx'],
         runTemplate: (cmd, filePath) => {
             const baseName = path.basename(filePath, path.extname(filePath));
-            const outPath = path.join(os.tmpdir(), 'colon-runner', baseName);
-            return `${cmd} "${filePath}" -o "${outPath}" && "${outPath}"`;
+            const ext = process.platform === 'win32' ? '.exe' : '';
+            const outPath = path.join(os.tmpdir(), 'colon-runner', baseName + ext);
+            const chain = '&&';
+            return `${cmd} "${filePath}" -o "${outPath}" ${chain} "${outPath}"`;
         },
         installCmd: {
             linux: 'sudo apt-get install -y build-essential',
@@ -115,7 +119,8 @@ const RUNTIMES = [
         runTemplate: (cmd, filePath) => {
             const baseName = path.basename(filePath, '.java');
             const dir = path.dirname(filePath);
-            return `cd "${dir}" && javac "${path.basename(filePath)}" && java ${baseName}`;
+            const chain = '&&';
+            return `cd "${dir}" ${chain} javac "${path.basename(filePath)}" ${chain} java ${baseName}`;
         },
         installCmd: {
             linux: 'sudo apt-get install -y default-jdk',
@@ -152,8 +157,10 @@ const RUNTIMES = [
         extensions: ['.rs'],
         runTemplate: (cmd, filePath) => {
             const baseName = path.basename(filePath, '.rs');
-            const outPath = path.join(os.tmpdir(), 'colon-runner', baseName);
-            return `${cmd} "${filePath}" -o "${outPath}" && "${outPath}"`;
+            const ext = process.platform === 'win32' ? '.exe' : '';
+            const outPath = path.join(os.tmpdir(), 'colon-runner', baseName + ext);
+            const chain = '&&';
+            return `${cmd} "${filePath}" -o "${outPath}" ${chain} "${outPath}"`;
         },
         installCmd: {
             linux: "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y",
@@ -217,7 +224,7 @@ function findPath(cmd) {
     return new Promise((resolve) => {
         execFile(finder, [cmd], { timeout: 3000 }, (error, stdout) => {
             if (error || !stdout) resolve(null);
-            else resolve(stdout.trim().split('\n')[0]);
+            else resolve(stdout.trim().split(/\r?\n/)[0]);
         });
     });
 }

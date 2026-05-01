@@ -12,6 +12,7 @@ const { detectBlocks, extToLanguage } = require('./services/blockDetectorUnivers
 const { generateAnimation, loadAnimations, deleteAnimation: deleteAnim, clearAnimations } = require('./services/animationGenerator');
 const { isConfigured: isLlmConfigured, getConfig: getLlmConfig } = require('./services/llmService');
 const { generateManimVideo, loadManimVideos, deleteManimVideo, cancelManimVideo } = require('./services/manimService');
+const { checkAnimEngine, installAnimEngine } = require('./services/animEngineService');
 const { getStatus, runGit } = require('./services/gitService');
 const debugService = require('./services/debugService');
 
@@ -28,6 +29,18 @@ ipcMain.handle('dialog:openDirectory', async () => {
     if (canceled) return null;
     lastOpenedDir = filePaths[0];
     return filePaths[0];
+});
+
+ipcMain.handle('dialog:openFile', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+        properties: ['openFile', 'multiSelections'],
+        filters: [
+            { name: 'All Files', extensions: ['*'] },
+            { name: 'Source Code', extensions: ['js', 'ts', 'tsx', 'jsx', 'py', 'java', 'c', 'cpp', 'h', 'cs', 'go', 'rs', 'rb', 'php', 'html', 'css', 'json', 'xml', 'yaml', 'yml', 'md', 'txt', 'sh', 'bat'] },
+        ]
+    });
+    if (canceled) return null;
+    return filePaths;
 });
 
 ipcMain.handle('workspace:set', (event, dirPath) => {
@@ -174,7 +187,7 @@ ipcMain.handle('search:inFiles', async (event, query, options) => {
         for (const filePath of files) {
             let content;
             try { content = await fs.promises.readFile(filePath, 'utf-8'); } catch { continue; }
-            const lines = content.split('\n');
+            const lines = content.split(/\r?\n/);
             const matches = [];
 
             for (let i = 0; i < lines.length; i++) {
@@ -496,6 +509,28 @@ ipcMain.handle('manim:delete', async (event, { filePath, videoId }) => {
     }
 });
 
+/* ── Colon Animation Engine IPC ── */
+
+ipcMain.handle('animEngine:check', async () => {
+    try {
+        return await checkAnimEngine();
+    } catch (err) {
+        return { installed: false, error: err.message };
+    }
+});
+
+ipcMain.handle('animEngine:install', async (event) => {
+    try {
+        const result = await installAnimEngine((msg) => {
+            // Send progress to renderer
+            event.sender.send('animEngine:install:progress', msg);
+        });
+        return result;
+    } catch (err) {
+        return { success: false, error: err.message };
+    }
+});
+
 ipcMain.handle('git:status', async (event, cwd) => {
     return await getStatus(cwd || lastOpenedDir);
 });
@@ -532,7 +567,26 @@ ipcMain.on('terminal-create', (event, payload) => {
     // payload can be a string (terminalId) or { terminalId, cwd }
     const terminalId = typeof payload === 'string' ? payload : payload.terminalId;
     const cwd = (typeof payload === 'object' && payload.cwd) ? payload.cwd : lastOpenedDir;
-    const shell = process.platform === 'win32' ? 'powershell.exe' : 'bash';
+
+    // Pick the best shell for the platform:
+    // Windows: pwsh (PS7, supports &&) → cmd.exe (supports &&) → powershell.exe (fallback)
+    // macOS/Linux: user's $SHELL → bash
+    let shell, shellArgs;
+    if (process.platform === 'win32') {
+        const { execFileSync } = require('child_process');
+        let hasPwsh = false;
+        try { execFileSync('where.exe', ['pwsh'], { stdio: 'ignore' }); hasPwsh = true; } catch {}
+        if (hasPwsh) {
+            shell = 'pwsh';
+            shellArgs = ['-NoLogo'];
+        } else {
+            shell = 'cmd.exe';
+            shellArgs = [];
+        }
+    } else {
+        shell = process.env.SHELL || '/bin/bash';
+        shellArgs = ['--login'];
+    }
 
     // Prevent zombie PTYs if frontend reconnects/remounts the same terminal ID
     if (ptyProcesses[terminalId]) {
@@ -544,7 +598,7 @@ ipcMain.on('terminal-create', (event, payload) => {
         delete ptyProcesses[terminalId];
     }
 
-    const ptyProcess = pty.spawn(shell, [], {
+    const ptyProcess = pty.spawn(shell, shellArgs, {
         name: 'xterm-256color',
         cols: 80,
         rows: 24,
