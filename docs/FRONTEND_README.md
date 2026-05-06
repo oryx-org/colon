@@ -14,7 +14,7 @@ The frontend is a React application that runs inside Electron's renderer process
 cd frontend
 npm install
 npm run dev       # Standalone dev server at http://localhost:5173
-# OR: Start via Electron (from desktop/ folder): npm run dev
+# OR: Start via Electron (from backend/ folder): npm run dev
 ```
 
 ---

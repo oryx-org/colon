@@ -58,6 +58,62 @@ COLORS: #3b82f6 (default) #f59e0b (active) #10b981 (done) #ef4444 (error) #f1f5f
 
 
 
+/* ── Import Validation (BUG-008/V-08) ── */
+
+/**
+ * Whitelist of allowed imports for LLM-generated Manim scripts.
+ * Blocks dangerous modules (os, sys, subprocess, etc.) that could allow
+ * arbitrary code execution. See ARCHITECTURE.md §Security.
+ */
+const ALLOWED_IMPORTS = new Set([
+    'manim', 'math', 'numpy', 'np', 'colour', 'random', 'itertools', 'functools',
+    'collections', 'typing', 'enum', 'dataclasses', 'string', 'textwrap',
+]);
+
+const BLOCKED_IMPORTS = new Set([
+    'os', 'sys', 'subprocess', 'shutil', 'pathlib', 'socket', 'http',
+    'urllib', 'requests', 'ftplib', 'smtplib', 'ctypes', 'importlib',
+    'code', 'codeop', 'compile', 'compileall', 'py_compile',
+    'signal', 'multiprocessing', 'threading', 'asyncio',
+    'pickle', 'shelve', 'marshal', 'tempfile', 'glob', 'fnmatch',
+    'webbrowser', 'antigravity', 'turtle', 'tkinter',
+]);
+
+/**
+ * Validate that a Manim script only imports allowed modules.
+ * Throws an Error if a blocked import is found.
+ * @param {string} script — Python source code
+ */
+function validateManimImports(script) {
+    const lines = script.split('\n');
+    for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('#')) continue; // skip comments
+
+        // Match: import X, from X import ...
+        let match;
+        // "from X import ..."
+        match = trimmed.match(/^from\s+(\w+)/);
+        if (match) {
+            const mod = match[1];
+            if (BLOCKED_IMPORTS.has(mod)) {
+                throw new Error(`Blocked import detected: "${mod}". LLM-generated scripts cannot use ${mod} for security reasons.`);
+            }
+        }
+        // "import X" or "import X, Y, Z"
+        match = trimmed.match(/^import\s+(.+)/);
+        if (match) {
+            const modules = match[1].split(',').map(m => m.trim().split(/\s+/)[0]); // handle "import X as Y"
+            for (const mod of modules) {
+                if (BLOCKED_IMPORTS.has(mod)) {
+                    throw new Error(`Blocked import detected: "${mod}". LLM-generated scripts cannot use ${mod} for security reasons.`);
+                }
+            }
+        }
+    }
+}
+
+
 /* ── Helpers ── */
 
 function getManimDir(filePath) {
@@ -218,6 +274,9 @@ INSTRUCTIONS:
         fs.writeFileSync(scenePath, manimScript, 'utf-8');
         console.log('[manimService] Manim script written to:', scenePath);
 
+        // Step 2.25: Validate imports — block dangerous modules (BUG-008/V-08)
+        validateManimImports(manimScript);
+
         // Step 2.5: Pre-validate Python syntax BEFORE running Manim.
         // If invalid, auto-retry LLM up to 2 more times.
         let syntaxOk = await validatePythonSyntax(scenePath);
@@ -314,6 +373,12 @@ function runManim(scenePath, workDir) {
         let stdout = '';
         let stderr = '';
 
+        // spawn timeout only sends SIGTERM; enforce manually
+        const killTimer = setTimeout(() => {
+            try { process.platform === 'win32' ? currentProc.kill() : currentProc.kill('SIGKILL'); } catch { }
+            reject(new Error('Manim render timed out after 2 minutes.'));
+        }, 120000);
+
         currentProc.stdout.on('data', (data) => {
             stdout += data.toString();
         });
@@ -323,6 +388,7 @@ function runManim(scenePath, workDir) {
         });
 
         currentProc.on('close', (code) => {
+            clearTimeout(killTimer);
             if (isCancelled) {
                 reject(new Error('Cancelled'));
                 return;
@@ -337,6 +403,7 @@ function runManim(scenePath, workDir) {
         });
 
         currentProc.on('error', (err) => {
+            clearTimeout(killTimer);
             if (isCancelled) {
                 reject(new Error('Cancelled'));
                 return;

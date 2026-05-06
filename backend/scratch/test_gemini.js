@@ -1,9 +1,18 @@
+/**
+ * Gemini API verification script.
+ * Reads API key from environment (.env) — never hardcode keys here.
+ */
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 require('dotenv').config();
 
 async function testGemini() {
-    const apiKey = "AIzaSyAxP75qJKtoIivrc3kl_fdKvSslBo6BrDs";
-    const modelName = "gemini-2.5-flash";
+    const apiKey = process.env.LLM_API_KEY;
+    const modelName = process.env.LLM_MODEL || "gemini-2.5-flash";
+
+    if (!apiKey || apiKey === 'your-api-key-here') {
+        console.error("ERROR: Set LLM_API_KEY in backend/.env first.");
+        process.exit(1);
+    }
 
     console.log(`Testing Gemini API Key with model: ${modelName}`);
 

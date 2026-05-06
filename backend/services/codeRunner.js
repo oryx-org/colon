@@ -165,18 +165,39 @@ function runCode(filePath, runtimeId, runtimeCommand, onOutput) {
     if (config.needsCompile) {
         onOutput('stdout', `[Compiling ${path.basename(filePath)}...]\n`);
 
-        compileCode(config.compileCmd, config.compileArgs, cwd).then((result) => {
-            if (!result.success) {
-                onOutput('compile-error', result.error);
+        // Track the active process so the kill function works during compilation (BUG-007)
+        let activeKill = null;
+        const compileProc = spawn(config.compileCmd, config.compileArgs, {
+            cwd,
+            env: process.env,
+            timeout: 30000
+        });
+        activeKill = () => {
+            try { process.platform === 'win32' ? compileProc.kill() : compileProc.kill('SIGTERM'); } catch { }
+        };
+
+        let stderr = '';
+        compileProc.stderr.on('data', (d) => { stderr += d.toString(); });
+
+        compileProc.on('close', (code) => {
+            if (code !== 0) {
+                onOutput('compile-error', stderr || `Compilation failed with exit code ${code}`);
                 onOutput('exit', '\n[Compilation failed]\n');
+                activeKill = null;
             } else {
                 onOutput('stdout', '[Compilation successful. Running...]\n\n');
-                execute();
+                activeKill = execute();
             }
         });
 
-        // Return a no-op kill for now (the actual process kill happens inside execute)
-        return () => { };
+        compileProc.on('error', (err) => {
+            onOutput('compile-error', err.message);
+            onOutput('exit', '\n[Compilation failed]\n');
+            activeKill = null;
+        });
+
+        // Return a kill function that kills whatever is currently active (compile or run)
+        return () => { if (activeKill) activeKill(); };
     } else {
         return execute();
     }

@@ -205,7 +205,6 @@ function callGroq(apiKey, model, system, user, temperature, maxTokens, forceJson
     });
 }
 
-/* ── Google Gemini ── */
 async function callGemini(apiKey, model, system, user, temperature, maxTokens) {
     const genAI = new GoogleGenerativeAI(apiKey);
     const genConfig = { temperature, maxOutputTokens: maxTokens };
@@ -216,17 +215,24 @@ async function callGemini(apiKey, model, system, user, temperature, maxTokens) {
         generationConfig: genConfig,
     });
 
-    // Wrap in a timeout — Gemini SDK has no built-in timeout
+    // Wrap in a timeout — Gemini SDK has no built-in timeout.
+    // IMPORTANT: Clear the timer on success to avoid memory leaks (BUG-006).
     const timeoutMs = 120000;
-    const resultPromise = genModel.generateContent(user);
-    const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Gemini request timeout (120s)')), timeoutMs)
-    );
+    let timeoutId;
+    const timeoutPromise = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('Gemini request timeout (120s)')), timeoutMs);
+    });
 
-    const result = await Promise.race([resultPromise, timeoutPromise]);
-    const text = result.response.text();
-    if (!text) throw new Error('Gemini: empty response');
-    return text;
+    try {
+        const result = await Promise.race([genModel.generateContent(user), timeoutPromise]);
+        clearTimeout(timeoutId);
+        const text = result.response.text();
+        if (!text) throw new Error('Gemini: empty response');
+        return text;
+    } catch (err) {
+        clearTimeout(timeoutId);
+        throw err;
+    }
 }
 
 module.exports = { chatCompletion, isConfigured, getConfig };

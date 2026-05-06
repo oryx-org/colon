@@ -29,7 +29,7 @@
 │  │    [Uninstall]                                    ││
 │  ├──────────────────────────────────────────────────┤│
 │  │ ⚙️ C++ (GCC/MinGW)  13.2                         ││
-│  │    Status: ✅ Installed (App: ~/.codemotion/...)  ││
+│  │    Status: ✅ Installed (App: ~/.Colon/...)  ││
 │  │    [Uninstall]                                    ││
 │  ├──────────────────────────────────────────────────┤│
 │  │ ☕ Java (OpenJDK)    21.0.2                       ││
@@ -45,7 +45,7 @@
 │  │    [📥 Install] (will install via pip)            ││
 │  └──────────────────────────────────────────────────┘│
 │                                                      │
-│  💡 Compilers are installed to: ~/.codemotion/compilers/│
+│  💡 Compilers are installed to: ~/.Colon/compilers/│
 └──────────────────────────────────────────────────────┘
 ```
 
@@ -62,7 +62,7 @@
 User clicks "Install Java":
    ├── Download OpenJDK zip from your CDN (~180MB)
    ├── Show progress bar (downloaded: 45MB / 180MB)
-   ├── Extract to ~/.codemotion/compilers/java/
+   ├── Extract to ~/.Colon/compilers/java/
    ├── Update compilers.json with path
    └── Show ✅ Installed
 ```
@@ -169,7 +169,7 @@ Host this JSON on your server (GitHub Pages, S3, or any static host). The app fe
 ## 3.5 Implementation — Main Process
 
 ```javascript
-// desktop/services/languageManager.js
+// backend/services/languageManager.js
 const { app, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -367,12 +367,12 @@ module.exports = { registerLanguageManagerIPC };
 
 | OS | App Data Path | Compilers Path |
 |---|---|---|
-| Linux | `~/.config/codemotion/` | `~/.codemotion/compilers/` |
-| macOS | `~/Library/Application Support/codemotion/` | Same |
-| Windows | `%APPDATA%/codemotion/` | Same |
+| Linux | `~/.config/Colon/` | `~/.Colon/compilers/` |
+| macOS | `~/Library/Application Support/Colon/` | Same |
+| Windows | `%APPDATA%/Colon/` | Same |
 
 ```
-~/.codemotion/compilers/
+~/.Colon/compilers/
 ├── compilers.json              # Tracks all installations
 ├── python/
 │   └── bin/python3             # Python binary

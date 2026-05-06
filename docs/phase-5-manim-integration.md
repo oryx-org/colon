@@ -26,7 +26,7 @@ User clicks "Analyze"
 ┌────────────────────────────────────────────────┐
 │  STEP 1: Hash the code                         │
 │  SHA-256(code + language)                       │
-│  Check cache: ~/.codemotion/cache/{hash}.mp4    │
+│  Check cache: ~/.Colon/cache/{hash}.mp4    │
 │  Found? → Return cached video instantly ⚡      │
 └────────────────┬───────────────────────────────┘
                  │ MISS
@@ -48,7 +48,7 @@ User clicks "Analyze"
                  ▼
 ┌────────────────────────────────────────────────┐
 │  STEP 4: Write script + run Manim              │
-│  Write to: /tmp/codemotion_{hash}/animation.py  │
+│  Write to: /tmp/Colon_{hash}/animation.py  │
 │  Execute: manim animation.py SceneName -ql      │
 │  Progress → 40-90%                              │
 └────────────────┬───────────────────────────────┘
@@ -56,7 +56,7 @@ User clicks "Analyze"
 ┌────────────────────────────────────────────────┐
 │  STEP 5: Collect output                         │
 │  Find MP4 in Manim's output directory           │
-│  Copy to cache: ~/.codemotion/cache/{hash}.mp4  │
+│  Copy to cache: ~/.Colon/cache/{hash}.mp4  │
 │  Progress → 100%                                │
 │  Send video path to renderer                    │
 └────────────────────────────────────────────────┘
@@ -67,7 +67,7 @@ User clicks "Analyze"
 ## 5.3 Implementation
 
 ```javascript
-// desktop/services/manimRenderer.js
+// backend/services/manimRenderer.js
 const { ipcMain, app } = require('electron');
 const { spawn, execSync } = require('child_process');
 const path = require('path');
@@ -117,7 +117,7 @@ function registerManimIPC(mainWindow) {
       // Step 4: Render
       send('Rendering animation...', 40);
 
-      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codemotion-manim-'));
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'Colon-manim-'));
       const scriptPath = path.join(tmpDir, 'animation.py');
       fs.writeFileSync(scriptPath, manimScript);
 
@@ -222,7 +222,7 @@ module.exports = { registerManimIPC };
 ## 5.4 Script Validator
 
 ```javascript
-// desktop/services/scriptValidator.js
+// backend/services/scriptValidator.js
 const { execSync } = require('child_process');
 const path = require('path');
 const os = require('os');
@@ -267,8 +267,8 @@ else:
     print(json.dumps({"valid":True,"error":""}))
 `;
 
-  const tmpFile = path.join(os.tmpdir(), 'codemotion_validator.py');
-  const scriptFile = path.join(os.tmpdir(), 'codemotion_tovalidate.py');
+  const tmpFile = path.join(os.tmpdir(), 'Colon_validator.py');
+  const scriptFile = path.join(os.tmpdir(), 'Colon_tovalidate.py');
   fs.writeFileSync(tmpFile, validatorPy);
   fs.writeFileSync(scriptFile, script);
 
@@ -290,7 +290,7 @@ module.exports = { validateScript };
 ## 5.5 Local Caching
 
 ```
-~/.codemotion/cache/
+~/.Colon/cache/
 ├── a1b2c3d4...hash.mp4     # Cached video
 ├── e5f6g7h8...hash.mp4
 └── ...

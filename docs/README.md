@@ -1,4 +1,4 @@
-# 📘 CodeMotion — Project Documentation
+# 📘 Colon — Project Documentation
 
 > **AI-Powered Desktop IDE with Code Animation**
 > A desktop application where users write code, run it locally, and instantly see AI-generated animated videos explaining how their code works — step by step.
@@ -7,7 +7,7 @@
 
 ## 🎯 Project Vision
 
-Beginners often struggle to understand how code actually executes — variables changing, loops iterating, recursion unfolding — because static textbooks and text-heavy platforms fail to capture the dynamic nature of programming. **CodeMotion** solves this as an AI-powered desktop application where users write code (even partial snippets) in a full IDE and instantly receive AI-generated animated videos that visually explain each step of execution using color-coded elements, variable trackers, and on-screen explanations. Every time the user modifies their code and clicks "Analyze," a fresh animation is generated locally, allowing learners to see the impact of each change in real time.
+Beginners often struggle to understand how code actually executes — variables changing, loops iterating, recursion unfolding — because static textbooks and text-heavy platforms fail to capture the dynamic nature of programming. **Colon** solves this as an AI-powered desktop application where users write code (even partial snippets) in a full IDE and instantly receive AI-generated animated videos that visually explain each step of execution using color-coded elements, variable trackers, and on-screen explanations. Every time the user modifies their code and clicks "Analyze," a fresh animation is generated locally, allowing learners to see the impact of each change in real time.
 
 ### Key Differentiators
 
@@ -66,7 +66,7 @@ Beginners often struggle to understand how code actually executes — variables 
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│  🎬 CodeMotion    File  Edit  View  Help               ─  □  ✕  │
+│  🎬 Colon    File  Edit  View  Help               ─  □  ✕  │
 ├───────────┬───────────────────────────┬──────────────────────────┤
 │           │                           │                          │
 │  📁 FILES  │   📝 EDITOR (Monaco)      │   🎬 ANIMATION PLAYER    │
@@ -91,7 +91,7 @@ Beginners often struggle to understand how code actually executes — variables 
 
 ```bash
 git clone <repo-url>
-cd codemotion
+cd backend
 
 # Install frontend dependencies
 cd frontend && npm install

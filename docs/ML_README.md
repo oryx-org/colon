@@ -16,7 +16,7 @@ The ML/AI module is responsible for:
 ## Files
 
 ```
-desktop/services/
+backend/services/
 ├── llmClient.js           # Calls Gemini/GPT API
 └── scriptValidator.js     # AST-based security validation
 

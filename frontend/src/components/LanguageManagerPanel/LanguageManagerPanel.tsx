@@ -90,13 +90,21 @@ export default function LanguageManagerPanel() {
             electron.onRuntimeInstallEvent((payload: any) => {
                 setInstallProgress(prev => {
                     const current = prev[payload.runtimeId] || { runtimeId: payload.runtimeId, status: 'installing' };
-                    // We append logs or just update status
-                    if (payload.status === 'success') {
-                         return { ...prev, [payload.runtimeId]: { ...current, status: 'success' } };
-                    } else if (payload.status === 'failed') {
-                         return { ...prev, [payload.runtimeId]: { ...current, status: 'failed', error: payload.error } };
-                    } else if (payload.stdout || payload.stderr) {
-                         return { ...prev, [payload.runtimeId]: { ...current, status: 'installing', stdout: payload.stdout, stderr: payload.stderr } };
+                    
+                    if (payload.type === 'exit') {
+                        // Backend sends type:'exit' with success:true/false on completion
+                        const status = payload.success ? 'success' : 'failed';
+                        if (payload.success) {
+                            // Re-scan environments after successful install
+                            scanEnvironments();
+                        }
+                        return { ...prev, [payload.runtimeId]: { ...current, status, error: payload.success ? undefined : payload.message } };
+                    } else if (payload.type === 'error') {
+                        return { ...prev, [payload.runtimeId]: { ...current, status: 'failed', error: payload.message } };
+                    } else if (payload.type === 'stdout' || payload.type === 'stderr') {
+                        return { ...prev, [payload.runtimeId]: { ...current, status: 'installing', stdout: payload.message } };
+                    } else if (payload.type === 'start') {
+                        return { ...prev, [payload.runtimeId]: { runtimeId: payload.runtimeId, status: 'installing' } };
                     }
                     return prev;
                 });

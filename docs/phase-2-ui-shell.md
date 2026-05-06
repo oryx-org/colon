@@ -23,7 +23,7 @@
 
 ```
 ┌──────────────────────────────── HEADER ─────────────────────────────────┐
-│  🎬 CodeMotion   [▶ Run] [🔍 Analyze] [⚙ Settings]      Language: C++ │
+│  🎬 Colon   [▶ Run] [🔍 Analyze] [⚙ Settings]      Language: C++ │
 ├───────────┬───────────────────────────┬─────────────────────────────────┤
 │           │                           │                                 │
 │  FILE     │       EDITOR              │     ANIMATION PANEL             │

@@ -11,10 +11,16 @@ const LSP_LANGUAGES = new Set([
     'rust',
 ]);
 
-export function connectLsp(language: string) {
+export async function connectLsp(language: string) {
     if (!LSP_LANGUAGES.has(language)) return null;
 
-    const url = `ws://localhost:3001/${language}`;
+    const electron = (window as any).electronAPI;
+    let token = '';
+    if (electron && electron.lsp) {
+        token = await electron.lsp.getToken();
+    }
+
+    const url = `ws://127.0.0.1:3001/${language}?token=${token}`;
     const webSocket = new WebSocket(url);
 
     webSocket.onopen = () => {

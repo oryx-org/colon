@@ -21,23 +21,23 @@
 ### Step 1: Root Workspace
 
 ```bash
-cd codemotion
+cd backend
 # Root package.json already exists
 ```
 
 ### Step 2: Set Up Electron (Desktop)
 
 ```bash
-cd desktop
+cd backend
 npm init -y
 npm install electron electron-store
 npm install -D electron-builder concurrently wait-on
 ```
 
-**`desktop/package.json`** — add scripts:
+**`backend/package.json`** — add scripts:
 ```json
 {
-  "name": "codemotion-desktop",
+  "name": "Colon-desktop",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -50,7 +50,7 @@ npm install -D electron-builder concurrently wait-on
 ### Step 3: Create Electron Main Process
 
 ```javascript
-// desktop/main.js
+// backend/main.js
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
 
@@ -92,7 +92,7 @@ app.on('window-all-closed', () => {
 ### Step 4: Create Preload Script
 
 ```javascript
-// desktop/preload.js
+// backend/preload.js
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -157,7 +157,7 @@ export default defineConfig({
 ## 1.3 Dev Workflow
 
 ```bash
-# From desktop/ folder:
+# From backend/ folder:
 npm run dev
 
 # This does TWO things:

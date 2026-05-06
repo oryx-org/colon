@@ -1,4 +1,4 @@
-import { LuRefreshCw, LuBook, LuCheck, LuPlus, LuRotateCcw, LuGitCommitHorizontal, LuGitBranch } from 'react-icons/lu';
+import { LuRefreshCw, LuPlus, LuRotateCcw, LuGitCommitHorizontal, LuGitBranch } from 'react-icons/lu';
 import { useState, useCallback, useEffect } from 'react';
 
 import './SourceControlPanel.css';

@@ -19,10 +19,10 @@
 ## 8.2 Electron Builder Configuration
 
 ```yaml
-# desktop/electron-builder.yml
-appId: com.codemotion.app
-productName: CodeMotion
-copyright: Copyright © 2026 CodeMotion Team
+# backend/electron-builder.yml
+appId: com.Colon.app
+productName: Colon
+copyright: Copyright © 2026 Colon Team
 
 directories:
   output: dist
@@ -40,7 +40,7 @@ win:
   target:
     - nsis
   icon: assets/icon.ico
-  artifactName: CodeMotion-Setup-${version}.${ext}
+  artifactName: Colon-Setup-${version}.${ext}
 
 nsis:
   oneClick: false
@@ -60,12 +60,12 @@ linux:
     - deb
   icon: assets/icon.png
   category: Development
-  maintainer: codemotion@example.com
+  maintainer: Colon@example.com
 
 publish:
   provider: github
   owner: your-github-username
-  repo: codemotion
+  repo: Colon
 ```
 
 ---
@@ -74,7 +74,7 @@ publish:
 
 ```bash
 # Build for current platform
-cd desktop
+cd backend
 npx electron-builder --dir        # Quick test (no installer)
 npx electron-builder              # Full installer
 
@@ -86,11 +86,11 @@ npx electron-builder --linux      # Linux .AppImage + .deb
 
 **Output:**
 ```
-desktop/dist/
-├── CodeMotion-Setup-1.0.0.exe       # Windows (~80MB)
-├── CodeMotion-1.0.0.dmg             # macOS (~85MB)
-├── CodeMotion-1.0.0.AppImage        # Linux portable (~75MB)
-└── codemotion_1.0.0_amd64.deb       # Linux .deb (~70MB)
+backend/dist/
+├── Colon-Setup-1.0.0.exe       # Windows (~80MB)
+├── Colon-1.0.0.dmg             # macOS (~85MB)
+├── Colon-1.0.0.AppImage        # Linux portable (~75MB)
+└── Colon_1.0.0_amd64.deb       # Linux .deb (~70MB)
 ```
 
 ---
@@ -98,7 +98,7 @@ desktop/dist/
 ## 8.4 Auto-Update System
 
 ```javascript
-// desktop/main.js — add auto-updater
+// backend/main.js — add auto-updater
 const { autoUpdater } = require('electron-updater');
 
 app.whenReady().then(() => {
@@ -164,10 +164,10 @@ jobs:
         run: cd frontend && npm run build
 
       - name: Install desktop deps
-        run: cd desktop && npm ci
+        run: cd backend && npm ci
 
       - name: Build Electron app
-        run: cd desktop && npx electron-builder
+        run: cd backend && npx electron-builder
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -175,7 +175,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: release-${{ matrix.os }}
-          path: desktop/dist/CodeMotion*
+          path: backend/dist/Colon*
 ```
 
 ---

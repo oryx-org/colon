@@ -515,8 +515,10 @@ function App() {
         setLeftTab(prev => prev === 'none' ? 'folder' : 'none');
         break;
       case 'startDebugging':
+        setLeftTab('debug');
+        break;
       case 'addBreakpoint':
-        window.alert('Debugging features are planned for a future update.');
+        setLeftTab('debug');
         break;
       case 'showAbout':
       case 'showWelcome':
@@ -921,8 +923,17 @@ function App() {
   const centerEditorAndTerminal = (
     <div className="split-center-area">
       {isTerminalMaximized ? (
-        <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
-          {workspaceTopContent}
+        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', minHeight: 0 }}>
+          {/* Hide the editor but keep it in the DOM so it doesn't unmount */}
+          <div style={{ height: 0, overflow: 'hidden' }}>
+            {workspaceTopContent}
+          </div>
+          <TerminalPanel
+            ref={terminalRef}
+            onClose={toggleTerminal}
+            onMaximize={toggleMaximize}
+            isMaximized={isTerminalMaximized}
+          />
         </div>
       ) : showTerminal ? (
         <Split

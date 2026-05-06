@@ -22,7 +22,7 @@ const RUNTIMES = [
         installCmd: {
             linux: 'sudo apt-get install -y python3 python3-pip',
             darwin: 'brew install python3',
-            win32: 'winget install Python.Python.3.12'
+            win32: 'winget install Python.Python.3.12 --accept-source-agreements --accept-package-agreements'
         }
     },
     {
@@ -39,7 +39,7 @@ const RUNTIMES = [
         installCmd: {
             linux: 'curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt-get install -y nodejs',
             darwin: 'brew install node',
-            win32: 'winget install OpenJS.NodeJS.LTS'
+            win32: 'winget install OpenJS.NodeJS.LTS --accept-source-agreements --accept-package-agreements'
         }
     },
     {
@@ -80,7 +80,7 @@ const RUNTIMES = [
         installCmd: {
             linux: 'sudo apt-get install -y build-essential',
             darwin: 'xcode-select --install',
-            win32: 'winget install GnuWin32.Make'
+            win32: 'winget install GnuWin32.Make --accept-source-agreements --accept-package-agreements'
         }
     },
     {
@@ -103,7 +103,7 @@ const RUNTIMES = [
         installCmd: {
             linux: 'sudo apt-get install -y build-essential',
             darwin: 'xcode-select --install',
-            win32: 'winget install GnuWin32.Make'
+            win32: 'winget install GnuWin32.Make --accept-source-agreements --accept-package-agreements'
         }
     },
     {
@@ -125,7 +125,7 @@ const RUNTIMES = [
         installCmd: {
             linux: 'sudo apt-get install -y default-jdk',
             darwin: 'brew install openjdk',
-            win32: 'winget install Microsoft.OpenJDK.21'
+            win32: 'winget install Microsoft.OpenJDK.21 --accept-source-agreements --accept-package-agreements'
         }
     },
     {
@@ -142,7 +142,7 @@ const RUNTIMES = [
         installCmd: {
             linux: 'sudo snap install go --classic',
             darwin: 'brew install go',
-            win32: 'winget install GoLang.Go'
+            win32: 'winget install GoLang.Go --accept-source-agreements --accept-package-agreements'
         }
     },
     {
@@ -165,7 +165,7 @@ const RUNTIMES = [
         installCmd: {
             linux: "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y",
             darwin: "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y",
-            win32: 'winget install Rustlang.Rust.MSVC'
+            win32: 'winget install Rustlang.Rust.MSVC --accept-source-agreements --accept-package-agreements'
         }
     },
     {
@@ -182,7 +182,7 @@ const RUNTIMES = [
         installCmd: {
             linux: 'sudo apt-get install -y ruby-full',
             darwin: 'brew install ruby',
-            win32: 'winget install RubyInstallerTeam.Ruby'
+            win32: 'winget install RubyInstallerTeam.Ruby --accept-source-agreements --accept-package-agreements'
         }
     },
     {
@@ -199,7 +199,7 @@ const RUNTIMES = [
         installCmd: {
             linux: 'sudo apt-get install -y php-cli',
             darwin: 'brew install php',
-            win32: 'winget install PHP.PHP'
+            win32: 'winget install PHP.PHP --accept-source-agreements --accept-package-agreements'
         }
     }
 ];

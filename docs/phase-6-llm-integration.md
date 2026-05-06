@@ -20,7 +20,7 @@
 ## 6.2 LLM Client
 
 ```javascript
-// desktop/services/llmClient.js
+// backend/services/llmClient.js
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const Store = require('electron-store');
 
@@ -156,7 +156,7 @@ These are real bugs we discovered and fixed in our proof-of-concept:
 For common patterns, skip the LLM entirely and use pre-built templates:
 
 ```javascript
-// desktop/services/templateMatcher.js
+// backend/services/templateMatcher.js
 
 const PATTERNS = {
   bubble_sort: {

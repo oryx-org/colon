@@ -13,7 +13,7 @@
     "package:linux": "npm run build:frontend && electron-builder --linux",
     "package:win": "npm run build:frontend && electron-builder --win",
     "package:mac": "npm run build:frontend && electron-builder --mac",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test tests/*.js"
   },
   "keywords": [
     "code-animation",
@@ -21,7 +21,7 @@
     "electron",
     "ide"
   ],
-  "author": "",
+  "author": "Colon IDE Team",
   "license": "ISC",
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

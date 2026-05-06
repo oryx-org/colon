@@ -1,4 +1,4 @@
-# 🚀 Optimization Guide — CodeMotion Desktop
+# 🚀 Optimization Guide — Colon Desktop
 
 ---
 
@@ -42,7 +42,7 @@ In the LLM prompt:
 Desktop caching is **even better** than web caching — files persist on disk:
 
 ```
-~/.codemotion/cache/
+~/.Colon/cache/
 ├── a1b2c3.mp4    ← SHA-256(code + language)
 ├── d4e5f6.mp4
 └── ...

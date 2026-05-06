@@ -1,4 +1,4 @@
-# 🛠️ Tech Stack & Tools — CodeMotion Desktop
+# 🛠️ Tech Stack & Tools — Colon Desktop
 
 ---
 
@@ -71,7 +71,7 @@
 ### Desktop (Electron)
 
 ```bash
-mkdir desktop && cd desktop
+mkdir desktop && cd backend
 npm init -y
 npm install electron electron-store
 npm install -D electron-builder electron-devtools-installer
@@ -90,7 +90,7 @@ npm install xterm xterm-addon-fit
 ### Main Process Dependencies
 
 ```bash
-cd desktop
+cd backend
 npm install node-pty chokidar extract-zip axios
 npm install @google/generative-ai
 ```
@@ -110,7 +110,7 @@ pip install manim
 Since this is a desktop app, there's no `.env` file on a server. Instead, settings are stored locally:
 
 ```json
-// ~/.config/codemotion/config.json (managed by electron-store)
+// ~/.config/Colon/config.json (managed by electron-store)
 {
   "llm": {
     "provider": "gemini",
@@ -135,17 +135,17 @@ Since this is a desktop app, there's no `.env` file on a server. Instead, settin
 ### Compiler Config
 
 ```json
-// ~/.codemotion/compilers/compilers.json
+// ~/.Colon/compilers/compilers.json
 {
   "python": {
     "installed": true,
     "version": "3.12.3",
-    "path": "/home/user/.codemotion/compilers/python/bin/python3"
+    "path": "/home/user/.Colon/compilers/python/bin/python3"
   },
   "cpp": {
     "installed": true,
     "version": "13.2",
-    "path": "/home/user/.codemotion/compilers/cpp/bin/g++"
+    "path": "/home/user/.Colon/compilers/cpp/bin/g++"
   },
   "java": {
     "installed": false,

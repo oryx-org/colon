@@ -18,7 +18,7 @@ The Electron main process is the **brain** of the desktop app. It handles:
 ## Folder Structure
 
 ```
-desktop/
+backend/
 ├── main.js                     # App entry: window creation, IPC registration
 ├── preload.js                  # Security bridge: exposes electronAPI to renderer
 ├── services/
@@ -40,7 +40,7 @@ desktop/
 ## How to Register All Services
 
 ```javascript
-// desktop/main.js
+// backend/main.js
 const { app, BrowserWindow } = require('electron');
 const { registerFileSystemIPC } = require('./services/fileSystem');
 const { registerCodeRunnerIPC } = require('./services/codeRunner');
@@ -89,7 +89,7 @@ This is Electron's **context isolation** security model. All Node.js power is in
 ## Quick Start
 
 ```bash
-cd desktop
+cd backend
 npm install
 npm run dev       # Opens Electron with React HMR
 ```

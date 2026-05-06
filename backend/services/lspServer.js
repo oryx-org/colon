@@ -17,9 +17,17 @@ function findBin(name) {
     }
 }
 
+const crypto = require('crypto');
+
+let lspToken = crypto.randomBytes(16).toString('hex');
+
+function getLspToken() {
+    return lspToken;
+}
+
 function startLspServer() {
-    // Start WebSocket server on port 3001
-    wss = new WebSocket.Server({ port: 3001 });
+    // Start WebSocket server on port 3001, binding ONLY to localhost (127.0.0.1) for security
+    wss = new WebSocket.Server({ port: 3001, host: '127.0.0.1' });
 
     wss.on('error', (err) => {
         if (err.code === 'EADDRINUSE') {
@@ -29,14 +37,22 @@ function startLspServer() {
         }
     });
 
-    console.log('[lspServer.js] LSP WebSocket Server started on ws://localhost:3001');
+    console.log('[lspServer.js] LSP WebSocket Server started on ws://127.0.0.1:3001');
 
     wss.on('connection', (ws, req) => {
-        // The URL will tell us what language server to start, e.g. /python
-        const url = req.url || '/';
-        const lang = url.substring(1); // removes the leading slash
+        // Parse URL: /<lang>?token=<token>
+        const urlObj = new URL(req.url, 'ws://127.0.0.1:3001');
+        const lang = urlObj.pathname.substring(1);
+        const token = urlObj.searchParams.get('token');
 
-        console.log(`[lspServer.js] New connection for language: ${lang}`);
+        // Security check: require correct token and origin
+        if (token !== lspToken) {
+            console.warn('[lspServer.js] Rejected connection: invalid or missing security token.');
+            ws.close(4003, 'Forbidden');
+            return;
+        }
+
+        console.log(`[lspServer.js] New secure connection for language: ${lang}`);
 
         let lsProcess = null;
 
@@ -122,4 +138,4 @@ function stopLspServer() {
     }
 }
 
-module.exports = { startLspServer, stopLspServer };
+module.exports = { startLspServer, stopLspServer, getLspToken };

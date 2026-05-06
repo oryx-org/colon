@@ -1,4 +1,4 @@
-# 🏗️ System Architecture — CodeMotion Desktop
+# 🏗️ System Architecture — Colon Desktop
 
 ---
 
@@ -71,14 +71,14 @@ Step 5: Main Process validates the script
     │   - Verify Scene class exists
     │
 Step 6: Main Process writes script to temp file
-    │   /tmp/codemotion_abc123/animation.py
+    │   /tmp/Colon_abc123/animation.py
     │
 Step 7: Main Process runs Manim locally
     │   spawn('manim', ['animation.py', 'SceneName', '-ql', '-o', 'output.mp4'])
     │   Sends progress updates to Renderer via IPC
     │
 Step 8: Manim finishes → MP4 file on disk
-    │   /tmp/codemotion_abc123/output.mp4
+    │   /tmp/Colon_abc123/output.mp4
     │
 Step 9: Main Process sends file path to Renderer
     │   ipcRenderer receives 'analyze:complete' event
@@ -118,8 +118,8 @@ Step 7: Process exits → show exit code
 ## 4. Folder Structure
 
 ```
-codemotion/
-├── desktop/                      # Electron Main Process
+Colon/
+├── backend/                      # Electron Main Process
 │   ├── main.js                   # App entry, window creation
 │   ├── preload.js                # IPC bridge (security)
 │   ├── services/
@@ -198,11 +198,11 @@ All communication between the React UI (Renderer) and Node.js (Main) goes throug
 
 | Data | Storage | Location |
 |---|---|---|
-| User preferences | `electron-store` | `~/.config/codemotion/config.json` |
-| Installed compilers | JSON file | `~/.codemotion/compilers/compilers.json` |
-| Compiler binaries | Local filesystem | `~/.codemotion/compilers/{language}/` |
+| User preferences | `electron-store` | `~/.config/Colon/config.json` |
+| Installed compilers | JSON file | `~/.Colon/compilers/compilers.json` |
+| Compiler binaries | Local filesystem | `~/.Colon/compilers/{language}/` |
 | Generated videos | Temp directory | OS temp dir, cleaned on exit |
-| Recent projects | `electron-store` | `~/.config/codemotion/config.json` |
+| Recent projects | `electron-store` | `~/.config/Colon/config.json` |
 
 **No MongoDB, no Redis, no server needed for the desktop app.**
 

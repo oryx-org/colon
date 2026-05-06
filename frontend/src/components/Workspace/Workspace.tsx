@@ -60,23 +60,23 @@ function Workspace({ openFiles, activeFilePath, setActiveFilePath, onCloseFile, 
         padding: { top: 16 },
         scrollBeyondLastLine: false,
         smoothScrolling: true,
-        cursorBlinking: 'smooth',
-        cursorSmoothCaretAnimation: 'on',
-        renderWhitespace: 'none',
+        cursorBlinking: 'smooth' as const,
+        cursorSmoothCaretAnimation: 'on' as const,
+        renderWhitespace: 'none' as const,
         readOnly: false,
         automaticLayout: true,
         contextmenu: true,
-        wordWrap: settings?.wordWrap || 'off',
+        wordWrap: (settings?.wordWrap || 'off') as 'off' | 'on' | 'wordWrapColumn' | 'bounded',
         tabSize: settings?.tabSize || 4,
         bracketPairColorization: { enabled: true, independentColorPoolPerBracketType: true },
-        matchBrackets: "always",
-        autoClosingBrackets: "always",
-        autoClosingQuotes: "always",
+        matchBrackets: "always" as const,
+        autoClosingBrackets: "always" as const,
+        autoClosingQuotes: "always" as const,
         formatOnPaste: false,
         formatOnType: false,
         folding: true,
         foldingHighlight: true,
-        showFoldingControls: "always",
+        showFoldingControls: "always" as const,
         suggest: {
             showKeywords: true,
             showSnippets: true,
@@ -85,7 +85,7 @@ function Workspace({ openFiles, activeFilePath, setActiveFilePath, onCloseFile, 
             showVariables: true,
         },
         parameterHints: { enabled: true },
-        snippetSuggestions: "top",
+        snippetSuggestions: "top" as const,
         scrollbar: {
             verticalScrollbarSize: 10,
             horizontalScrollbarSize: 10,
@@ -389,7 +389,7 @@ function Workspace({ openFiles, activeFilePath, setActiveFilePath, onCloseFile, 
                     path={activeFile.path}
                     height="100%"
                     language={activeFile.language}
-                    theme="vs-dark"
+                    theme="custom-black"
                     defaultValue={activeFile.content}
                     onChange={handleEditorChange}
                     beforeMount={handleEditorWillMount}

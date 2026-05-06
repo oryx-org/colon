@@ -15,11 +15,39 @@ const { generateManimVideo, loadManimVideos, deleteManimVideo, cancelManimVideo 
 const { checkAnimEngine, installAnimEngine } = require('./services/animEngineService');
 const { getStatus, runGit } = require('./services/gitService');
 const debugService = require('./services/debugService');
+const { startLspServer, getLspToken } = require('./services/lspServer');
+
+ipcMain.handle('lsp:getToken', () => getLspToken());
 
 // Load environment variables via dotenv
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
-let lastOpenedDir = os.homedir();
+let lastOpenedDir = null;
+const explicitlyAllowedFiles = new Set();
+
+function resolveDefaultCwd(cwd) {
+    return cwd || lastOpenedDir || os.homedir();
+}
+
+/**
+ * Security: Validate that a given path is within the current workspace root.
+ * Prevents the renderer from accessing arbitrary filesystem paths.
+ */
+function isPathWithinWorkspace(targetPath) {
+    try {
+        const resolved = path.resolve(targetPath);
+        if (lastOpenedDir) {
+            const workspace = path.resolve(lastOpenedDir);
+            const relative = path.relative(workspace, resolved);
+            if (relative === '' || (relative && !relative.startsWith('..') && !path.isAbsolute(relative))) {
+                return true;
+            }
+        }
+        return explicitlyAllowedFiles.has(resolved);
+    } catch {
+        return false;
+    }
+}
 
 // IPC Handlers for file system
 ipcMain.handle('dialog:openDirectory', async () => {
@@ -27,8 +55,8 @@ ipcMain.handle('dialog:openDirectory', async () => {
         properties: ['openDirectory']
     });
     if (canceled) return null;
-    lastOpenedDir = filePaths[0];
-    return filePaths[0];
+    lastOpenedDir = path.resolve(filePaths[0]);
+    return lastOpenedDir;
 });
 
 ipcMain.handle('dialog:openFile', async () => {
@@ -40,15 +68,17 @@ ipcMain.handle('dialog:openFile', async () => {
         ]
     });
     if (canceled) return null;
+    for (const filePath of filePaths) {
+        explicitlyAllowedFiles.add(path.resolve(filePath));
+    }
     return filePaths;
 });
 
-ipcMain.handle('workspace:set', (event, dirPath) => {
-    lastOpenedDir = dirPath;
-    return true;
-});
-
 ipcMain.handle('fs:readDirectory', async (event, dirPath) => {
+    if (!isPathWithinWorkspace(dirPath)) {
+        console.warn('[main.js] readDirectory blocked — path outside workspace:', dirPath);
+        return [];
+    }
     try {
         const items = await fs.promises.readdir(dirPath, { withFileTypes: true });
         const files = items.map(item => ({
@@ -67,6 +97,10 @@ ipcMain.handle('fs:readDirectory', async (event, dirPath) => {
 });
 
 ipcMain.handle('fs:readFile', async (event, filePath) => {
+    if (!isPathWithinWorkspace(filePath)) {
+        console.warn('[main.js] readFile blocked — path outside workspace:', filePath);
+        throw new Error('Access denied: path outside workspace');
+    }
     console.log('[main.js] readFile called for:', filePath);
     try {
         const content = await fs.promises.readFile(filePath, 'utf-8');
@@ -79,6 +113,10 @@ ipcMain.handle('fs:readFile', async (event, filePath) => {
 });
 
 ipcMain.handle('fs:writeFile', async (event, { filePath, content }) => {
+    if (!isPathWithinWorkspace(filePath)) {
+        console.warn('[main.js] writeFile blocked — path outside workspace:', filePath);
+        return false;
+    }
     try {
         await fs.promises.writeFile(filePath, content, 'utf-8');
         return true;
@@ -89,6 +127,10 @@ ipcMain.handle('fs:writeFile', async (event, { filePath, content }) => {
 });
 
 ipcMain.handle('fs:delete', async (event, targetPath) => {
+    if (!isPathWithinWorkspace(targetPath)) {
+        console.warn('[main.js] delete blocked — path outside workspace:', targetPath);
+        return false;
+    }
     try {
         const stats = await fs.promises.stat(targetPath);
         if (stats.isDirectory()) {
@@ -104,6 +146,10 @@ ipcMain.handle('fs:delete', async (event, targetPath) => {
 });
 
 ipcMain.handle('fs:rename', async (event, { oldPath, newPath }) => {
+    if (!isPathWithinWorkspace(oldPath) || !isPathWithinWorkspace(newPath)) {
+        console.warn('[main.js] rename blocked — path outside workspace');
+        return false;
+    }
     try {
         await fs.promises.rename(oldPath, newPath);
         return true;
@@ -114,6 +160,10 @@ ipcMain.handle('fs:rename', async (event, { oldPath, newPath }) => {
 });
 
 ipcMain.handle('fs:createFile', async (event, filePath) => {
+    if (!isPathWithinWorkspace(filePath)) {
+        console.warn('[main.js] createFile blocked — path outside workspace:', filePath);
+        return false;
+    }
     try {
         await fs.promises.writeFile(filePath, '', 'utf-8');
         return true;
@@ -124,6 +174,10 @@ ipcMain.handle('fs:createFile', async (event, filePath) => {
 });
 
 ipcMain.handle('fs:createDirectory', async (event, dirPath) => {
+    if (!isPathWithinWorkspace(dirPath)) {
+        console.warn('[main.js] createDirectory blocked — path outside workspace:', dirPath);
+        return false;
+    }
     try {
         await fs.promises.mkdir(dirPath, { recursive: true });
         return true;
@@ -205,6 +259,11 @@ ipcMain.handle('search:inFiles', async (event, query, options) => {
                     });
                     totalMatches++;
                     if (totalMatches > 5000) break;
+                    
+                    // Prevent infinite loops on empty matches (e.g. `.*?` or `^`)
+                    if (m[0].length === 0) {
+                        pattern.lastIndex++;
+                    }
                 }
                 if (totalMatches > 5000) break;
             }
@@ -301,8 +360,14 @@ ipcMain.handle('env:installRuntime', async (event, runtimeId) => {
         const child = spawn(shell, args, {
             cwd: os.homedir(),
             env: process.env,
-            stdio: ['ignore', 'pipe', 'pipe']
+            stdio: ['pipe', 'pipe', 'pipe']
         });
+
+        // Auto-answer any remaining yes/no prompts that flags don't cover
+        try {
+            child.stdin.write('Y\n');
+            child.stdin.end();
+        } catch { /* ignore if stdin closes early */ }
 
         runtimeInstallProcesses[installId] = child;
 
@@ -531,17 +596,38 @@ ipcMain.handle('animEngine:install', async (event) => {
     }
 });
 
+function resolveGitCwd(cwd) {
+    if (cwd && isPathWithinWorkspace(cwd)) return cwd;
+    return resolveDefaultCwd();
+}
+
 ipcMain.handle('git:status', async (event, cwd) => {
-    return await getStatus(cwd || lastOpenedDir);
+    return await getStatus(resolveGitCwd(cwd));
 });
 
 ipcMain.handle('git:branch', async (event, cwd) => {
-    const res = await runGit('branch --show-current', cwd || lastOpenedDir);
+    const res = await runGit(['branch', '--show-current'], resolveGitCwd(cwd));
     return res.success ? res.stdout : null;
 });
 
-ipcMain.handle('git:run', async (event, cwd, command) => {
-    return await runGit(command, cwd || lastOpenedDir);
+ipcMain.handle('git:init', async (event, cwd) => {
+    return await runGit(['init'], resolveGitCwd(cwd));
+});
+
+ipcMain.handle('git:addAll', async (event, cwd) => {
+    return await runGit(['add', '.'], resolveGitCwd(cwd));
+});
+
+ipcMain.handle('git:addFile', async (event, cwd, file) => {
+    return await runGit(['add', '--', file], resolveGitCwd(cwd));
+});
+
+ipcMain.handle('git:commit', async (event, cwd, message) => {
+    return await runGit(['commit', '-m', String(message || '')], resolveGitCwd(cwd));
+});
+
+ipcMain.handle('git:checkoutFile', async (event, cwd, file) => {
+    return await runGit(['checkout', '--', file], resolveGitCwd(cwd));
 });
 
 // Debugger IPC handers
@@ -566,7 +652,9 @@ const ptyProcesses = {};
 ipcMain.on('terminal-create', (event, payload) => {
     // payload can be a string (terminalId) or { terminalId, cwd }
     const terminalId = typeof payload === 'string' ? payload : payload.terminalId;
-    const cwd = (typeof payload === 'object' && payload.cwd) ? payload.cwd : lastOpenedDir;
+    const cwd = (typeof payload === 'object' && payload.cwd && isPathWithinWorkspace(payload.cwd))
+        ? payload.cwd
+        : resolveDefaultCwd();
 
     // Pick the best shell for the platform:
     // Windows: pwsh (PS7, supports &&) → cmd.exe (supports &&) → powershell.exe (fallback)
@@ -638,8 +726,6 @@ ipcMain.on('terminal-kill', (event, terminalId) => {
     }
 });
 
-const { startLspServer } = require('./services/lspServer');
-
 let mainWindow;
 
 function createWindow() {
@@ -654,7 +740,7 @@ function createWindow() {
             preload: path.join(__dirname, 'preload.js'),
             nodeIntegration: false,
             contextIsolation: true,
-            webSecurity: false,
+            webSecurity: true,
         },
         backgroundColor: '#0a0e17',
         frame: false,

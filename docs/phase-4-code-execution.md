@@ -44,7 +44,7 @@ User clicks ▶ Run
 ## 4.3 Implementation
 
 ```javascript
-// desktop/services/codeRunner.js
+// backend/services/codeRunner.js
 const { ipcMain } = require('electron');
 const { spawn, execSync } = require('child_process');
 const path = require('path');
@@ -74,7 +74,7 @@ function registerCodeRunnerIPC(mainWindow) {
     }
 
     const startTime = Date.now();
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codemotion-'));
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'Colon-'));
 
     try {
       let cmd, args;

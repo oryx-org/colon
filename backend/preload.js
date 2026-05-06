@@ -4,6 +4,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     isDesktop: true,
     platform: process.platform,
 
+    lsp: {
+        getToken: () => ipcRenderer.invoke('lsp:getToken')
+    },
+
     // Window controls
     windowControl: (action) => ipcRenderer.send('window-control', action),
     newWindow: () => ipcRenderer.send('window-new'),

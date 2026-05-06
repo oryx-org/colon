@@ -34,7 +34,7 @@ class DebugService {
             args = ['-m', 'pdb', filePath];
         } else if (resolvedLanguage === 'javascript') {
             cmd = options.nodeCommand || 'node';
-            args = ['inspect-brk', filePath];
+            args = ['--inspect-brk', filePath];
         } else {
             return {
                 success: false,
