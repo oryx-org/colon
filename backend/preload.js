@@ -24,7 +24,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     rename: (oldPath, newPath) => ipcRenderer.invoke('fs:rename', { oldPath, newPath }),
     createFile: (filePath) => ipcRenderer.invoke('fs:createFile', filePath),
     createDirectory: (dirPath) => ipcRenderer.invoke('fs:createDirectory', dirPath),
-    setWorkspace: (dirPath) => ipcRenderer.invoke('workspace:set', dirPath),
 
     // Terminal (PTY)
     terminal: {
@@ -42,7 +41,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     installRuntime: (runtimeId) => ipcRenderer.invoke('env:installRuntime', runtimeId),
     cancelRuntimeInstall: (installId) => ipcRenderer.invoke('env:cancelRuntimeInstall', installId),
     onRuntimeInstallEvent: (callback) => {
-        ipcRenderer.on('env:install:event', (event, payload) => callback(payload));
+        const listener = (event, payload) => callback(payload);
+        ipcRenderer.on('env:install:event', listener);
+        return () => ipcRenderer.removeListener('env:install:event', listener);
     },
     removeRuntimeInstallListeners: () => ipcRenderer.removeAllListeners('env:install:event'),
 
@@ -58,7 +59,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     git: {
         status: (cwd) => ipcRenderer.invoke('git:status', cwd),
         branch: (cwd) => ipcRenderer.invoke('git:branch', cwd),
-        run: (cwd, command) => ipcRenderer.invoke('git:run', cwd, command)
+        init: (cwd) => ipcRenderer.invoke('git:init', cwd),
+        addAll: (cwd) => ipcRenderer.invoke('git:addAll', cwd),
+        addFile: (cwd, file) => ipcRenderer.invoke('git:addFile', cwd, file),
+        commit: (cwd, message) => ipcRenderer.invoke('git:commit', cwd, message),
+        checkoutFile: (cwd, file) => ipcRenderer.invoke('git:checkoutFile', cwd, file)
     },
 
     // Debugger

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "lint": "eslint .",
+    "lint": "tsc -b --pretty false && eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -38,5 +38,8 @@
     "globals": "^16.5.0",
     "typescript": "^5.9.3",
     "vite": "^7.3.1"
+  },
+  "overrides": {
+    "dompurify": "3.4.2"
   }
 }

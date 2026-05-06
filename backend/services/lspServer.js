@@ -2,9 +2,6 @@ const WebSocket = require('ws');
 const { spawn, execFileSync } = require('child_process');
 const path = require('path');
 
-/** On Windows, node_modules/.bin scripts have a .cmd wrapper */
-const BIN_EXT = process.platform === 'win32' ? '.cmd' : '';
-
 let wss = null;
 
 /** Find a binary on PATH, returns null if not found */
@@ -25,7 +22,22 @@ function getLspToken() {
     return lspToken;
 }
 
+function getNodeCommand() {
+    return process.versions.electron ? 'node' : process.execPath;
+}
+
+function spawnCommand(command, args = [], options = {}) {
+    return spawn(command, args, {
+        ...options,
+        windowsHide: true,
+    });
+}
+
 function startLspServer() {
+    if (wss) {
+        return;
+    }
+
     // Start WebSocket server on port 3001, binding ONLY to localhost (127.0.0.1) for security
     wss = new WebSocket.Server({ port: 3001, host: '127.0.0.1' });
 
@@ -35,13 +47,23 @@ function startLspServer() {
         } else {
             console.error('[lspServer.js] WebSocket server error:', err.message);
         }
+        try { wss.close(); } catch { /* ignore */ }
+        wss = null;
     });
 
-    console.log('[lspServer.js] LSP WebSocket Server started on ws://127.0.0.1:3001');
+    wss.on('listening', () => {
+        console.log('[lspServer.js] LSP WebSocket Server started on ws://127.0.0.1:3001');
+    });
 
     wss.on('connection', (ws, req) => {
         // Parse URL: /<lang>?token=<token>
-        const urlObj = new URL(req.url, 'ws://127.0.0.1:3001');
+        let urlObj;
+        try {
+            urlObj = new URL(req.url || '/', 'ws://127.0.0.1:3001');
+        } catch {
+            ws.close(4000, 'Bad request');
+            return;
+        }
         const lang = urlObj.pathname.substring(1);
         const token = urlObj.searchParams.get('token');
 
@@ -56,44 +78,57 @@ function startLspServer() {
 
         let lsProcess = null;
 
-        if (lang === 'python') {
-            const pyrightBin = path.join(__dirname, '..', 'node_modules', '.bin', 'pyright-langserver' + BIN_EXT);
-            lsProcess = spawn(pyrightBin, ['--stdio']);
-            console.log('[lspServer.js] Spawned pyright-langserver');
+        try {
+            if (lang === 'python') {
+                const pyrightScript = path.join(__dirname, '..', 'node_modules', 'pyright', 'langserver.index.js');
+                lsProcess = spawnCommand(getNodeCommand(), [pyrightScript, '--stdio']);
+                console.log('[lspServer.js] Spawned pyright-langserver');
 
-        } else if (lang === 'javascript' || lang === 'typescript' ||
-                   lang === 'javascriptreact' || lang === 'typescriptreact') {
-            const tslsBin = path.join(__dirname, '..', 'node_modules', '.bin', 'typescript-language-server' + BIN_EXT);
-            lsProcess = spawn(tslsBin, ['--stdio'], {
-                env: { ...process.env, TSS_LOG: '' }
-            });
-            console.log('[lspServer.js] Spawned typescript-language-server');
+            } else if (lang === 'javascript' || lang === 'typescript' ||
+                       lang === 'javascriptreact' || lang === 'typescriptreact') {
+                const tslsScript = path.join(__dirname, '..', 'node_modules', 'typescript-language-server', 'lib', 'cli.mjs');
+                lsProcess = spawnCommand(getNodeCommand(), [tslsScript, '--stdio'], {
+                    env: { ...process.env, TSS_LOG: '' }
+                });
+                console.log('[lspServer.js] Spawned typescript-language-server');
 
-        } else if (lang === 'go') {
-            const gopls = findBin('gopls');
-            if (!gopls) {
-                console.warn('[lspServer.js] gopls not found. Install with: go install golang.org/x/tools/gopls@latest');
+            } else if (lang === 'go') {
+                const gopls = findBin('gopls');
+                if (!gopls) {
+                    console.warn('[lspServer.js] gopls not found. Install with: go install golang.org/x/tools/gopls@latest');
+                    ws.close();
+                    return;
+                }
+                lsProcess = spawnCommand(gopls, ['serve']);
+                console.log('[lspServer.js] Spawned gopls');
+
+            } else if (lang === 'rust') {
+                const ra = findBin('rust-analyzer');
+                if (!ra) {
+                    console.warn('[lspServer.js] rust-analyzer not found. Install from: https://rust-analyzer.github.io');
+                    ws.close();
+                    return;
+                }
+                lsProcess = spawnCommand(ra, []);
+                console.log('[lspServer.js] Spawned rust-analyzer');
+
+            } else {
+                console.log(`[lspServer.js] No LSP server configured for: ${lang}`);
                 ws.close();
                 return;
             }
-            lsProcess = spawn(gopls, ['serve']);
-            console.log('[lspServer.js] Spawned gopls');
-
-        } else if (lang === 'rust') {
-            const ra = findBin('rust-analyzer');
-            if (!ra) {
-                console.warn('[lspServer.js] rust-analyzer not found. Install from: https://rust-analyzer.github.io');
-                ws.close();
-                return;
-            }
-            lsProcess = spawn(ra, []);
-            console.log('[lspServer.js] Spawned rust-analyzer');
-
-        } else {
-            console.log(`[lspServer.js] No LSP server configured for: ${lang}`);
-            ws.close();
+        } catch (err) {
+            console.error(`[lspServer.js] Failed to spawn ${lang} language server:`, err.message);
+            ws.close(1011, 'Language server failed to start');
             return;
         }
+
+        lsProcess.on('error', (err) => {
+            console.error(`[lspServer.js] ${lang} server error:`, err.message);
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.close(1011, 'Language server error');
+            }
+        });
 
         // Bridge: Language Server stdout -> WebSocket
         lsProcess.stdout.on('data', (data) => {

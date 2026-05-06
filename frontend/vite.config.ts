@@ -6,6 +6,7 @@ export default defineConfig({
   base: './',     // Required: relative paths for Electron file:// loading
   server: {
     port: 5173,
+    strictPort: true,
   },
   build: {
     outDir: 'dist',

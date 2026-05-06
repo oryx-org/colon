@@ -181,6 +181,17 @@ function App() {
     });
 
     const start = await api.installRuntime(runtime?.id);
+    if (start?.alreadyInstalled) {
+      await refreshEnvironments();
+      setRuntimeInstall(prev => ({
+        ...prev,
+        inProgress: false,
+        succeeded: true,
+        logs: [...prev.logs, start.reason || `${runtimeName} is already installed.`]
+      }));
+      return;
+    }
+
     if (!start?.success) {
       setRuntimeInstall(prev => ({
         ...prev,
@@ -252,9 +263,13 @@ function App() {
       }
     };
 
-    api.onRuntimeInstallEvent(onEvent);
+    const unsubscribe = api.onRuntimeInstallEvent(onEvent);
     return () => {
-      api.removeRuntimeInstallListeners?.();
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      } else {
+        api.removeRuntimeInstallListeners?.();
+      }
     };
   }, [appendInstallLog, refreshEnvironments]);
 

@@ -4,7 +4,14 @@ const fs = require('fs');
 const pty = require('node-pty');
 const os = require('os');
 const { spawn } = require('child_process');
-const { scanEnvironments, getRuntimeForExtension, buildRunCommand, RUNTIMES } = require('./services/envScanner');
+const {
+    scanEnvironments,
+    getRuntimeForExtension,
+    buildRunCommand,
+    RUNTIMES,
+    createRuntimeEnv,
+    getRuntimeInstallPlan
+} = require('./services/envScanner');
 const { lintCode } = require('./services/linterService');
 
 // LLM Animation Engine
@@ -318,7 +325,12 @@ const runtimeInstallProcesses = {};
 
 function getInstallShellConfig(command) {
     if (process.platform === 'win32') {
-        return { shell: 'powershell.exe', args: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', command] };
+        // Use PowerShell for installs: winget is an App Execution Alias that
+        // resolves more reliably in PowerShell than in cmd.exe on some PCs.
+        return {
+            shell: 'powershell.exe',
+            args: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', command]
+        };
     }
     return { shell: 'bash', args: ['-lc', command] };
 }
@@ -347,29 +359,40 @@ ipcMain.handle('env:installRuntime', async (event, runtimeId) => {
             return { success: false, reason: `Unknown runtime id: ${runtimeId}` };
         }
 
-        const installCmd = runtime.installCmd?.[process.platform] || null;
-        if (!installCmd) {
+        if (!cachedEnvironments) {
+            cachedEnvironments = await scanEnvironments();
+        }
+
+        if (cachedEnvironments[runtime.id]?.installed) {
             return {
-                success: false,
-                reason: `No install command is configured for ${runtime.name} on ${process.platform}.`
+                success: true,
+                alreadyInstalled: true,
+                runtimeId: runtime.id,
+                runtimeName: runtime.name,
+                reason: `${runtime.name} is already installed.`
             };
         }
 
+        const runtimeEnv = await createRuntimeEnv();
+        const installPlan = await getRuntimeInstallPlan(runtime, cachedEnvironments, runtimeEnv);
+        if (!installPlan.ok) {
+            return {
+                success: false,
+                reason: installPlan.reason
+            };
+        }
+
+        const installCmd = installPlan.command;
         const installId = `${runtimeId}-${Date.now()}`;
         const { shell, args } = getInstallShellConfig(installCmd);
         const child = spawn(shell, args, {
             cwd: os.homedir(),
-            env: process.env,
+            env: runtimeEnv.env,
             stdio: ['pipe', 'pipe', 'pipe']
         });
 
-        // Auto-answer any remaining yes/no prompts that flags don't cover
-        try {
-            child.stdin.write('Y\n');
-            child.stdin.end();
-        } catch { /* ignore if stdin closes early */ }
-
         runtimeInstallProcesses[installId] = child;
+        let outputBuffer = '';
 
         const sendEvent = (type, message, extra = {}) => {
             if (!event.sender.isDestroyed()) {
@@ -385,15 +408,27 @@ ipcMain.handle('env:installRuntime', async (event, runtimeId) => {
             }
         };
 
-        sendEvent('start', `Installing ${runtime.name}...`);
-        sendEvent('command', installCmd);
+        sendEvent('start', `Installing ${runtime.name} with ${installPlan.manager}...`);
+        if (installPlan.requiresElevation) {
+            sendEvent('stdout', 'A Windows administrator permission prompt may appear. Approve it to continue the install.\n');
+        }
+        sendEvent('command', installPlan.displayCommand || installCmd, {
+            manager: installPlan.manager,
+            requiresElevation: installPlan.requiresElevation
+        });
 
         child.stdout.on('data', (data) => {
-            sendEvent('stdout', data.toString());
+            const text = data.toString();
+            outputBuffer += text;
+            if (outputBuffer.length > 20000) outputBuffer = outputBuffer.slice(-16000);
+            sendEvent('stdout', text);
         });
 
         child.stderr.on('data', (data) => {
-            sendEvent('stderr', data.toString());
+            const text = data.toString();
+            outputBuffer += text;
+            if (outputBuffer.length > 20000) outputBuffer = outputBuffer.slice(-16000);
+            sendEvent('stderr', text);
         });
 
         child.on('error', (err) => {
@@ -403,9 +438,29 @@ ipcMain.handle('env:installRuntime', async (event, runtimeId) => {
 
         child.on('close', async (code, signal) => {
             delete runtimeInstallProcesses[installId];
+            // Wait for PATH registry changes to propagate before re-scanning
+            await new Promise(resolve => setTimeout(resolve, 3000));
             cachedEnvironments = await scanEnvironments();
-            sendEvent('exit', `Install process exited with code ${code}${signal ? ` (signal ${signal})` : ''}`,
-                { code, signal, success: code === 0 });
+            const verified = !!cachedEnvironments[runtime.id]?.installed;
+            const lookedAlreadyInstalled = /already installed|existing package already installed|no newer package versions are available|no available upgrade/i.test(outputBuffer);
+            const validExitCodes = installPlan.validExitCodes || [0];
+            const commandSucceeded = code !== null && validExitCodes.includes(code);
+            const success = verified || commandSucceeded || (code !== null && lookedAlreadyInstalled);
+            const exitText = signal
+                ? `Install process stopped (${signal}).`
+                : `Install process exited with code ${code}.`;
+            const verifyText = verified
+                ? `${runtime.name} is ready.`
+                : `${runtime.name} was not detected after installation. ${commandSucceeded ? 'Restart Colon or check PATH if the installer says it completed.' : 'The installer command did not complete successfully; check the log above.'}`;
+
+            sendEvent('exit', `${exitText} ${verifyText}`, {
+                code,
+                signal,
+                success,
+                verified,
+                manager: installPlan.manager,
+                installed: cachedEnvironments[runtime.id] || null
+            });
         });
 
         return {
@@ -413,7 +468,9 @@ ipcMain.handle('env:installRuntime', async (event, runtimeId) => {
             installId,
             runtimeId,
             runtimeName: runtime.name,
-            command: installCmd
+            command: installPlan.displayCommand || installCmd,
+            manager: installPlan.manager,
+            requiresElevation: installPlan.requiresElevation
         };
     } catch (err) {
         return { success: false, reason: err.message };
@@ -426,7 +483,11 @@ ipcMain.handle('env:cancelRuntimeInstall', async (event, installId) => {
         if (!proc) {
             return { success: false, reason: 'No active install process found.' };
         }
-        process.platform === 'win32' ? proc.kill() : proc.kill('SIGTERM');
+        if (process.platform === 'win32') {
+            spawn('taskkill.exe', ['/pid', String(proc.pid), '/T', '/F'], { windowsHide: true });
+        } else {
+            proc.kill('SIGTERM');
+        }
         return { success: true };
     } catch (err) {
         return { success: false, reason: err.message };
@@ -465,7 +526,7 @@ ipcMain.handle('code:getRunCommand', async (event, filePath) => {
     }
 
     // Build the actual shell command
-    const command = buildRunCommand(runtime.id, envInfo.command, filePath);
+    const command = buildRunCommand(runtime.id, envInfo, filePath);
     return { success: true, command, runtime: envInfo };
 });
 
@@ -656,21 +717,14 @@ ipcMain.on('terminal-create', (event, payload) => {
         ? payload.cwd
         : resolveDefaultCwd();
 
-    // Pick the best shell for the platform:
+    // Pick the best shell for the platform.
     // Windows: pwsh (PS7, supports &&) → cmd.exe (supports &&) → powershell.exe (fallback)
     // macOS/Linux: user's $SHELL → bash
+    // Windows is pinned to cmd.exe so PATH refresh commands work consistently.
     let shell, shellArgs;
     if (process.platform === 'win32') {
-        const { execFileSync } = require('child_process');
-        let hasPwsh = false;
-        try { execFileSync('where.exe', ['pwsh'], { stdio: 'ignore' }); hasPwsh = true; } catch {}
-        if (hasPwsh) {
-            shell = 'pwsh';
-            shellArgs = ['-NoLogo'];
-        } else {
-            shell = 'cmd.exe';
-            shellArgs = [];
-        }
+        shell = process.env.ComSpec || 'cmd.exe';
+        shellArgs = [];
     } else {
         shell = process.env.SHELL || '/bin/bash';
         shellArgs = ['--login'];

@@ -15,10 +15,8 @@ export async function connectLsp(language: string) {
     if (!LSP_LANGUAGES.has(language)) return null;
 
     const electron = (window as any).electronAPI;
-    let token = '';
-    if (electron && electron.lsp) {
-        token = await electron.lsp.getToken();
-    }
+    const token = electron?.lsp ? await electron.lsp.getToken().catch(() => '') : '';
+    if (!token) return null;
 
     const url = `ws://127.0.0.1:3001/${language}?token=${token}`;
     const webSocket = new WebSocket(url);

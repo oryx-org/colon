@@ -5,7 +5,7 @@ import './SourceControlPanel.css';
 
 interface GitStatus {
     isRepo: boolean;
-    files?: Array<{ file: string, status: string }>;
+    files?: Array<{ file: string, status: string, path?: string }>;
 }
 
 interface SourceControlPanelProps {
@@ -45,24 +45,30 @@ export default function SourceControlPanel({ onFileClick }: SourceControlPanelPr
         if (!electron?.git || !commitMessage.trim()) return;
         
         setIsLoading(true);
-        // Stage all changes and commit
-        await electron.git.run(null, 'add .');
-        const res = await electron.git.run(null, `commit -m "${commitMessage.replace(/"/g, '\\"')}"`);
-        
-        if (res.success) {
-            setCommitMessage('');
-            loadStatus();
-        } else {
-            alert('Commit failed: ' + res.stderr);
+        try {
+            await electron.git.addAll(null);
+            const res = await electron.git.commit(null, commitMessage);
+            
+            if (res.success) {
+                setCommitMessage('');
+                await loadStatus();
+            } else {
+                alert('Commit failed: ' + res.stderr);
+            }
+        } finally {
+            setIsLoading(false);
         }
-        setIsLoading(false);
     };
 
     const handleStage = async (file: string) => {
         if (!electron?.git) return;
         setIsLoading(true);
-        await electron.git.run(null, `add "${file}"`);
-        loadStatus();
+        try {
+            await electron.git.addFile(null, file);
+            await loadStatus();
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const handleDiscard = async (file: string) => {
@@ -70,15 +76,23 @@ export default function SourceControlPanel({ onFileClick }: SourceControlPanelPr
         if (!confirm(`Are you sure you want to discard changes in ${file}?`)) return;
         
         setIsLoading(true);
-        await electron.git.run(null, `checkout -- "${file}"`);
-        loadStatus();
+        try {
+            await electron.git.checkoutFile(null, file);
+            await loadStatus();
+        } finally {
+            setIsLoading(false);
+        }
     };
     
     const handleInit = async () => {
         if (!electron?.git) return;
         setIsLoading(true);
-        await electron.git.run(null, 'init');
-        loadStatus();
+        try {
+            await electron.git.init(null);
+            await loadStatus();
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     if (!status) {
@@ -151,7 +165,7 @@ export default function SourceControlPanel({ onFileClick }: SourceControlPanelPr
                             <div key={idx} className="sc-file-item">
                                 <div 
                                     className="sc-file-name" 
-                                    onClick={() => onFileClick(item.file, item.file.split(/[\/\\]/).pop() || item.file)}
+                                    onClick={() => onFileClick(item.path || item.file, item.file.split(/[\/\\]/).pop() || item.file)}
                                 >
                                     <span className="sc-file-status" style={{ color: statusColor }}>
                                         {item.status.trim().charAt(0)}

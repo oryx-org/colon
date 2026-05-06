@@ -1,5 +1,6 @@
 const { execFile } = require('child_process');
 const util = require('util');
+const path = require('path');
 const execFilePromise = util.promisify(execFile);
 
 function normalizeArgs(command) {
@@ -43,7 +44,7 @@ async function getStatus(cwd) {
     const files = lines.map(line => {
         const status = line.substring(0, 2);
         const file = line.substring(3);
-        return { file, status };
+        return { file, status, path: cwd ? path.resolve(cwd, file) : file };
     });
     
     return { isRepo: true, files };
