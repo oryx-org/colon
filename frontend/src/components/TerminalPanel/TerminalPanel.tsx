@@ -21,6 +21,7 @@ export interface TerminalPanelRef {
     sendCommandToTerminal: (command: string) => void;
     /** Send raw bytes without appending '\n' — use for control chars like Ctrl+C (\x03) */
     sendRawToTerminal: (data: string) => void;
+    clearTerminal: () => void;
 }
 
 // Shared xterm instance registry so we can write to terminals from outside
@@ -114,11 +115,22 @@ const TerminalPanel = forwardRef<TerminalPanelRef, TerminalPanelProps>(({ onClos
         if (activeTId) killTerminal(activeTId);
     }, [activeTId, killTerminal]);
 
+    const clearTerminal = useCallback(() => {
+        const id = activeTIdRef.current;
+        if (id) {
+            const term = xtermRegistry.get(id);
+            if (term) {
+                term.clear();
+            }
+        }
+    }, []);
+
     // Expose methods to parent
     useImperativeHandle(ref, () => ({
         createTerminal,
         splitTerminal,
         killActiveTerminal,
+        clearTerminal,
         /**
          * Send a command string to the active terminal's PTY.
          * Uses activeTIdRef (not activeTId) so the closure is never stale.
@@ -222,13 +234,13 @@ const TerminalPanel = forwardRef<TerminalPanelRef, TerminalPanelProps>(({ onClos
             {/* ── Header ── */}
             <div className="terminal-header">
                 <div className="terminal-tabs">
-                    {['problems', 'output', 'debug', 'terminal', 'ports'].map(tab => (
+                    {['terminal', 'ports'].map(tab => (
                         <button
                             key={tab}
                             className={`terminal-tab ${activeTab === tab ? 'active' : ''}`}
                             onClick={() => setActiveTab(tab)}
                         >
-                            {tab === 'debug' ? 'DEBUG CONSOLE' : tab.toUpperCase()}
+                            {tab.toUpperCase()}
                         </button>
                     ))}
                 </div>
@@ -286,12 +298,13 @@ const TerminalPanel = forwardRef<TerminalPanelRef, TerminalPanelProps>(({ onClos
                                                     style={{ flex: 1, display: 'flex', overflow: 'hidden' }}
                                                 >
                                                     {group.terminals.map(tid => (
-                                                        <XTermView
-                                                            key={tid}
-                                                            terminalId={tid}
-                                                            isVisible={visible}
-                                                            onFocus={() => setActiveTId(tid)}
-                                                        />
+                                                        <div key={tid} style={{ display: 'flex', minWidth: 0, height: '100%' }}>
+                                                            <XTermView
+                                                                terminalId={tid}
+                                                                isVisible={visible}
+                                                                onFocus={() => setActiveTId(tid)}
+                                                            />
+                                                        </div>
                                                     ))}
                                                 </Split>
                                             ) : (
@@ -318,9 +331,7 @@ const TerminalPanel = forwardRef<TerminalPanelRef, TerminalPanelProps>(({ onClos
                             </div>
                         ) : (
                             <div className="terminal-content panel-tab-content">
-                                {activeTab === 'problems' && <p>No problems detected in the workspace.</p>}
-                                {activeTab === 'output' && <p>Run a task or command to see output logs here.</p>}
-                                {activeTab === 'debug' && <p>Start a debug session to stream debug console logs here.</p>}
+
                                 {activeTab === 'ports' && (
                                     <div className="ports-view">
                                         <p className="ports-hint">Ports exposed by running services are listed here.</p>

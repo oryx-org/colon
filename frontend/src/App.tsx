@@ -342,6 +342,9 @@ function App() {
       case 'killTerminal':
         terminalRef.current?.killActiveTerminal();
         break;
+      case 'clearTerminal':
+        terminalRef.current?.clearTerminal();
+        break;
       default:
         break;
     }

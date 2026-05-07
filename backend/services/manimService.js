@@ -45,6 +45,7 @@ TECHNICAL RULES:
 - Class: "CodeScene(Scene)" with self.camera.background_color = "#0d1117"
 - Use ONLY standard Manim CE objects. NO Code() objects.
 - Use Text() for text with font_size parameter. File must run: manim -ql scene.py CodeScene
+- SECURITY: DO NOT under any circumstances import 'os', 'sys', 'subprocess', or other system modules. They will trigger a security block.
 
 VISUALIZATION — Show algorithm concepts, NOT source code:
 - Arrays → colored Rectangles with labels | Stacks → vertical RoundedRectangles
