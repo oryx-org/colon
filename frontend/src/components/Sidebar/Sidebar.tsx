@@ -1,6 +1,5 @@
-import { LuSearch, LuSettings, LuFiles, LuBlocks, LuTerminal, LuGitBranch, LuBug } from 'react-icons/lu';
+import { LuSearch, LuSettings, LuFiles, LuBlocks, LuTerminal } from 'react-icons/lu';
 
-import './Sidebar.css';
 import './Sidebar.css';
 
 interface SidebarProps {
@@ -29,20 +28,6 @@ function Sidebar({ activeTab, setActiveTab, showTerminal, setShowTerminal, onSet
                     title="Search"
                 >
                     <LuSearch className="sidebar-icon-svg" />
-                </button>
-                <button
-                    className={`sidebar-btn ${activeTab === 'git' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('git')}
-                    title="Source Control"
-                >
-                    <LuGitBranch className="sidebar-icon-svg" />
-                </button>
-                <button
-                    className={`sidebar-btn ${activeTab === 'debug' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('debug')}
-                    title="Run and Debug"
-                >
-                    <LuBug className="sidebar-icon-svg" />
                 </button>
                 <button
                     className={`sidebar-btn ${activeTab === 'category' ? 'active' : ''}`}

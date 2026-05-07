@@ -15,7 +15,7 @@ const os = require('os');
 const WINGET_FLAGS = '--exact --source winget --accept-source-agreements --accept-package-agreements --disable-interactivity';
 
 const wingetInstall = (id) => `winget install --id ${id} ${WINGET_FLAGS}`;
-const chocoInstall = (id) => `choco install ${id} -y --no-progress`;
+const chocoInstall = (id) => `choco install ${id} -y --no-progress --force`;
 
 const winGetCandidate = (packageId) => ({
     id: `winget:${packageId}`,
@@ -30,7 +30,7 @@ const chocoCandidate = (packageId) => ({
     manager: 'Chocolatey',
     command: chocoInstall(packageId),
     packageManagerCommand: 'choco',
-    packageArgs: ['install', packageId, '-y', '--no-progress'],
+    packageArgs: ['install', packageId, '-y', '--no-progress', '--force'],
     requirements: [{ command: 'choco', args: ['--version'], name: 'Chocolatey' }],
     requiresElevation: true,
     validExitCodes: [0, 1641, 3010]
@@ -396,8 +396,9 @@ function getCommonRuntimeDirs() {
             process.env.ProgramW6432
         ].filter(Boolean);
 
-        addExistingDir(entries, path.join(localAppData, 'Microsoft', 'WindowsApps'));
+        // WinGet Links first — winget symlinks installed binaries here
         addExistingDir(entries, path.join(localAppData, 'Microsoft', 'WinGet', 'Links'));
+        // npm global bin
         addExistingDir(entries, path.join(appData, 'npm'));
         addExistingDir(entries, path.join(home, '.cargo', 'bin'));
         addExistingDir(entries, path.join(process.env.SystemRoot || 'C:\\Windows', 'System32'));
@@ -408,15 +409,24 @@ function getCommonRuntimeDirs() {
             addExistingDir(entries, path.join(pf, 'LLVM', 'bin'));
             addExistingDir(entries, path.join(pf, 'PHP'));
 
-            addMatchingChildDirs(entries, pf, name => /^Python\d+/i.test(name), dir => [dir, path.join(dir, 'Scripts')]);
+            // Python installed via winget/MSI to Program Files
+            addMatchingChildDirs(entries, pf, name => /^Python/i.test(name), dir => [dir, path.join(dir, 'Scripts')]);
+            // JDK installed via winget
             addMatchingChildDirs(entries, pf, name => /^(Microsoft|Eclipse|Adoptium|Java|OpenJDK)/i.test(name), dir => path.join(dir, 'bin'));
             addMatchingChildDirs(entries, path.join(pf, 'Microsoft'), name => /^jdk/i.test(name), dir => path.join(dir, 'bin'));
             addMatchingChildDirs(entries, path.join(pf, 'Java'), name => /^jdk/i.test(name), dir => path.join(dir, 'bin'));
             addMatchingChildDirs(entries, path.join(pf, 'Eclipse Adoptium'), name => /^jdk/i.test(name), dir => path.join(dir, 'bin'));
         }
 
-        addMatchingChildDirs(entries, path.join(localAppData, 'Programs', 'Python'), name => /^Python\d+/i.test(name), dir => [dir, path.join(dir, 'Scripts')]);
-        addMatchingChildDirs(entries, 'C:\\', name => /^Python\d+/i.test(name), dir => [dir, path.join(dir, 'Scripts')]);
+        // Python installed to user-local Programs (common winget/MSI location)
+        addMatchingChildDirs(entries, path.join(localAppData, 'Programs', 'Python'), name => /^Python/i.test(name), dir => [dir, path.join(dir, 'Scripts')]);
+        // Python installed directly to C:\
+        addMatchingChildDirs(entries, 'C:\\', name => /^Python/i.test(name), dir => {
+            // Only include if it has a real python binary, not orphaned dirs
+            const exePath = path.join(dir, 'python.exe');
+            try { if (fs.existsSync(exePath)) return [dir, path.join(dir, 'Scripts')]; } catch { /* ignore */ }
+            return [];
+        });
         addMatchingChildDirs(entries, 'C:\\', name => /^Ruby\d+/i.test(name), dir => path.join(dir, 'bin'));
         addMatchingChildDirs(entries, 'C:\\', name => /^Go$/i.test(name), dir => path.join(dir, 'bin'));
         addMatchingChildDirs(entries, 'C:\\', name => /^PHP/i.test(name), dir => dir);
@@ -438,10 +448,22 @@ function getCommonRuntimeDirs() {
             return [ucrt64, mingw64, bin];
         });
 
-        // Per-user programs installed by winget
+        // WinGet packages installed to per-user Programs
         addExistingDir(entries, path.join(localAppData, 'Programs'));
+        // Also search WinGet package install directories directly
+        addMatchingChildDirs(entries, path.join(localAppData, 'Microsoft', 'WinGet', 'Packages'), () => true, dir => {
+            // WinGet extracts some packages here; look for bin subdirectories
+            addExistingDir(entries, dir);
+            addExistingDir(entries, path.join(dir, 'bin'));
+            return [];
+        });
         addExistingDir(entries, path.join(home, 'go', 'bin'));
         addExistingDir(entries, path.join(home, '.rustup', 'toolchains'));
+        // Rustup default toolchain bin
+        addMatchingChildDirs(entries, path.join(home, '.rustup', 'toolchains'), () => true, dir => path.join(dir, 'bin'));
+
+        // WindowsApps last — these often contain Store alias stubs, real entries above are preferred
+        addExistingDir(entries, path.join(localAppData, 'Microsoft', 'WindowsApps'));
     } else {
         addExistingDir(entries, '/usr/local/bin');
         addExistingDir(entries, '/usr/bin');
@@ -524,6 +546,130 @@ function commandHasPath(command) {
     return command.includes('/') || command.includes('\\') || path.isAbsolute(command);
 }
 
+/**
+ * Check if a file is a Windows Store "App Execution Alias" stub.
+ * These are reparse-point files in the WindowsApps directory
+ * that redirect to the Microsoft Store instead of running the program.
+ * They look like real executables to fs.existsSync but fail at runtime.
+ *
+ * Detection strategies:
+ *  1. Files in WindowsApps that are 0 bytes (classic stub)
+ *  2. Files in WindowsApps that throw EACCES on stat (UWP app aliases)
+ *  3. Files in WindowsApps with the reparse-point attribute
+ */
+function isWindowsStoreStub(filePath) {
+    if (process.platform !== 'win32') return false;
+    try {
+        const normalized = filePath.toLowerCase();
+        if (!normalized.includes('windowsapps')) return false;
+        try {
+            const stat = fs.statSync(filePath);
+            // App Execution Aliases are 0-byte files
+            if (stat.size === 0) return true;
+            // Very small files (< 1KB) in WindowsApps that aren't .dll/.sys are also suspicious
+            // Real executables are at minimum several KB
+            if (stat.size < 1024 && /\.(exe)$/i.test(filePath)) return true;
+            return false;
+        } catch (statErr) {
+            // EACCES / EPERM on stat in WindowsApps means it's a reparse-point stub
+            if (statErr.code === 'EACCES' || statErr.code === 'EPERM') {
+                return true;
+            }
+            return true; // Any stat error on a WindowsApps path — treat as unusable
+        }
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Check if a candidate file is a valid, real executable.
+ * Returns true if the file exists, is a regular file, and is not a store stub.
+ */
+function isValidExecutable(filePath) {
+    try {
+        // First check if it's in WindowsApps (fast path for known stubs)
+        if (isWindowsStoreStub(filePath)) return false;
+        const stat = fs.statSync(filePath);
+        return stat.isFile();
+    } catch (err) {
+        // EACCES/EPERM — we can't verify, skip this candidate
+        return false;
+    }
+}
+
+/**
+ * Fall back to the system's `where.exe` (Windows) or `which` (Unix) command
+ * to find an executable. This catches cases where the filesystem scan fails
+ * (e.g., due to EACCES on WindowsApps) but the shell can still resolve the
+ * command via its own PATH handling.
+ *
+ * For WindowsApps candidates, we can't use stat (EACCES), so we actually
+ * try to run the executable with a benign flag to verify it's real and not
+ * a Microsoft Store redirect stub.
+ */
+function resolveExecutableViaShell(command) {
+    try {
+        const finder = process.platform === 'win32' ? 'where.exe' : 'which';
+        const result = require('child_process').execFileSync(finder, [command], {
+            timeout: 4000,
+            windowsHide: true,
+            env: process.env,
+            stdio: ['pipe', 'pipe', 'pipe']
+        }).toString().trim();
+
+        // `where.exe` can return multiple lines (one per match). Try each.
+        const lines = result.split(/\r?\n/).filter(Boolean);
+        for (const line of lines) {
+            const candidate = line.trim();
+            if (!candidate) continue;
+
+            const isInWindowsApps = candidate.toLowerCase().includes('windowsapps');
+
+            if (isInWindowsApps) {
+                // Can't stat WindowsApps files (EACCES). Instead, try to
+                // execute the candidate with --version or --help to verify
+                // it's a real executable and not a Store redirect stub.
+                try {
+                    require('child_process').execFileSync(candidate, ['--version'], {
+                        timeout: 4000,
+                        windowsHide: true,
+                        stdio: ['pipe', 'pipe', 'pipe']
+                    });
+                    // Ran successfully — it's a real executable
+                    return candidate;
+                } catch (runErr) {
+                    // Check stderr/stdout for the "not found" Store redirect message
+                    const errMsg = (runErr.stderr || '').toString() + (runErr.stdout || '').toString();
+                    if (errMsg.includes('Microsoft Store') || errMsg.includes('not found')) {
+                        // It's a Store alias stub — skip
+                        continue;
+                    }
+                    // Some tools exit non-zero for --version but still work (e.g., some
+                    // tools use --help instead). If we got ANY output, it's likely real.
+                    if (errMsg.trim().length > 0) {
+                        return candidate;
+                    }
+                    continue;
+                }
+            }
+
+            // Non-WindowsApps candidate: verify it's a real file
+            try {
+                const stat = fs.statSync(candidate);
+                if (stat.isFile() && stat.size > 0) {
+                    return candidate;
+                }
+            } catch {
+                continue;
+            }
+        }
+    } catch {
+        // `where`/`which` failed — command genuinely not found
+    }
+    return null;
+}
+
 function resolveExecutable(command, env = process.env) {
     const pathKey = getPathKey(env);
     const pathEntries = splitPathValue(env[pathKey] || env.PATH || env.Path);
@@ -545,14 +691,19 @@ function resolveExecutable(command, env = process.env) {
             : [candidate];
 
         for (const name of names) {
-            try {
-                if (fs.existsSync(name) && fs.statSync(name).isFile()) {
-                    return name;
-                }
-            } catch {
-                /* continue */
+            if (isValidExecutable(name)) {
+                return name;
             }
         }
+    }
+
+    // Fallback: Ask the OS shell to find the command.
+    // This catches executables that are accessible via the system PATH
+    // but not via the PATH we constructed (e.g., freshly installed runtimes
+    // whose PATH entries haven't propagated to Electron yet).
+    if (!commandHasPath(command)) {
+        const shellResolved = resolveExecutableViaShell(command);
+        if (shellResolved) return shellResolved;
     }
 
     return null;
@@ -618,12 +769,23 @@ function runResolvedExecutable(executable, args, env, timeout = 5000) {
                 windowsHide: true
             }, (error, stdout, stderr) => {
                 if (error) {
+                    // Log for debugging, but distinguish "not found" from "found but crashed"
+                    const combined = `${stdout || ''}${stderr || ''}`;
+                    // Some tools (e.g. javac -version) print version to stderr and exit 0,
+                    // but others print to stderr and exit non-zero. Check if we got version info.
+                    if (combined.trim().length > 0) {
+                        // Got output despite error code — likely just a non-zero exit for --version
+                        resolve(combined);
+                        return;
+                    }
+                    console.log(`[envScanner] runResolvedExecutable failed for ${executable}: ${error.message}`);
                     resolve(null);
                     return;
                 }
                 resolve(`${stdout || ''}${stderr || ''}`);
             });
-        } catch {
+        } catch (err) {
+            console.log(`[envScanner] runResolvedExecutable threw for ${executable}: ${err.message}`);
             resolve(null);
         }
     });
@@ -676,15 +838,72 @@ function getRunPathEntries(executable, tools = {}) {
     return uniquePathEntries([...entries, ...getCommonRuntimeDirs()]);
 }
 
+function findBrokenPythonInstallReason(runtimeEnv) {
+    if (process.platform !== 'win32') return null;
+
+    const dirs = [];
+    for (const entry of runtimeEnv.pathEntries || []) {
+        if (/\\Python\d+\\?$/i.test(entry) || /\\Programs\\Python\\Python\d+\\?$/i.test(entry)) {
+            dirs.push(entry);
+        }
+    }
+
+    const localPythonRoot = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'), 'Programs', 'Python');
+    addMatchingChildDirs(dirs, localPythonRoot, name => /^Python/i.test(name));
+    addMatchingChildDirs(dirs, 'C:\\', name => /^Python\d+/i.test(name));
+
+    for (const dir of uniquePathEntries(dirs)) {
+        try {
+            if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) continue;
+            const hasPythonExe = fs.existsSync(path.join(dir, 'python.exe'));
+            const hasInstallShape = fs.existsSync(path.join(dir, 'Lib'))
+                || fs.existsSync(path.join(dir, 'Scripts'))
+                || fs.readdirSync(dir).some(name => /^python.*\.dll$/i.test(name));
+
+            if (!hasPythonExe && hasInstallShape) {
+                return `Python appears partially installed at ${dir}, but python.exe is missing. Run install again to repair the Chocolatey/Python install.`;
+            }
+        } catch {
+            /* keep scanning */
+        }
+    }
+
+    return null;
+}
+
+function findBrokenInstallReason(runtime, runtimeEnv) {
+    if (runtime.id === 'python') {
+        return findBrokenPythonInstallReason(runtimeEnv);
+    }
+
+    return null;
+}
+
 async function detectRuntime(runtime, runtimeEnv) {
     const missingTools = [];
+    const probes = getRuntimeProbes(runtime);
 
-    for (const probe of getRuntimeProbes(runtime)) {
+    for (const probe of probes) {
+        // Step 1: Resolve the executable via filesystem + shell fallback
         const executable = resolveExecutable(probe.command, runtimeEnv.env);
-        if (!executable) continue;
+        if (!executable) {
+            console.log(`[envScanner] ${runtime.id}: probe "${probe.command}" — not found`);
+            continue;
+        }
 
+        // Step 2: Actually execute the probe to verify the binary is real and works
         const output = await runResolvedExecutable(executable, probe.versionArgs, runtimeEnv.env);
-        if (!output) continue;
+        if (!output) {
+            console.log(`[envScanner] ${runtime.id}: probe "${probe.command}" at ${executable} — failed to execute (possibly a store stub or broken install)`);
+            continue;
+        }
+
+        // Step 3: Verify version can be parsed (sanity check)
+        const version = runtime.parseVersion(output);
+        if (!version) {
+            console.log(`[envScanner] ${runtime.id}: probe "${probe.command}" at ${executable} — got output but could not parse version from: ${output.slice(0, 100)}`);
+            // Don't skip — still consider it installed with version 'unknown'
+        }
 
         const tools = {
             [runtime.id]: {
@@ -694,12 +913,14 @@ async function detectRuntime(runtime, runtimeEnv) {
             }
         };
 
+        // Step 4: Check required companion tools (e.g., Java needs both javac + java)
         let requiredOk = true;
         for (const tool of runtime.requiredTools || []) {
             const detectedTool = await detectTool(tool, runtimeEnv);
             if (!detectedTool) {
                 requiredOk = false;
                 missingTools.push(tool.name || tool.command);
+                console.log(`[envScanner] ${runtime.id}: required tool "${tool.name || tool.command}" not found`);
                 break;
             }
             tools[tool.name || tool.command] = detectedTool;
@@ -707,7 +928,7 @@ async function detectRuntime(runtime, runtimeEnv) {
 
         if (!requiredOk) continue;
 
-        const version = runtime.parseVersion(output);
+        console.log(`[envScanner] ✓ ${runtime.id}: detected v${version || 'unknown'} at ${executable}`);
         return {
             id: runtime.id,
             name: runtime.name,
@@ -723,19 +944,24 @@ async function detectRuntime(runtime, runtimeEnv) {
         };
     }
 
+    const reason = missingTools.length
+        ? `Missing required tool: ${missingTools.join(', ')}`
+        : findBrokenInstallReason(runtime, runtimeEnv);
+    console.log(`[envScanner] ✗ ${runtime.id}: not detected${reason ? ` (${reason})` : ''}`);
+
     return {
         id: runtime.id,
         name: runtime.name,
         installed: false,
         version: null,
         path: null,
-        command: getRuntimeProbes(runtime)[0]?.command || '',
+        command: probes[0]?.command || '',
         executable: null,
         tools: {},
         extensions: runtime.extensions,
         installCmd: runtime.installCmd[process.platform] || null,
         pathEntries: runtimeEnv.pathEntries,
-        reason: missingTools.length ? `Missing required tool: ${missingTools.join(', ')}` : null
+        reason
     };
 }
 
@@ -878,22 +1104,57 @@ async function getRuntimeInstallPlan(runtime, environments = {}, runtimeEnvArg =
 
 /** Scan all runtimes */
 async function scanEnvironments() {
+    console.log('[envScanner] Starting full environment scan...');
+
+    // Always rebuild the runtime env from scratch:
+    // - Re-reads the Windows Registry PATH (catches freshly installed runtimes)
+    // - Re-scans common install directories
+    // - Merges with current process.env PATH
     const runtimeEnv = await createRuntimeEnv();
     applyRuntimePathToProcess(runtimeEnv.pathValue);
 
+    console.log(`[envScanner] PATH has ${runtimeEnv.pathEntries.length} entries`);
+
     const results = {};
     for (const runtime of RUNTIMES) {
-        results[runtime.id] = await detectRuntime(runtime, runtimeEnv);
+        try {
+            results[runtime.id] = await detectRuntime(runtime, runtimeEnv);
+        } catch (err) {
+            console.error(`[envScanner] Error detecting ${runtime.id}:`, err.message);
+            results[runtime.id] = {
+                id: runtime.id,
+                name: runtime.name,
+                installed: false,
+                version: null,
+                path: null,
+                command: '',
+                executable: null,
+                tools: {},
+                extensions: runtime.extensions,
+                installCmd: runtime.installCmd[process.platform] || null,
+                pathEntries: runtimeEnv.pathEntries,
+                reason: `Detection error: ${err.message}`
+            };
+        }
     }
 
     for (const runtime of RUNTIMES) {
         if (results[runtime.id]?.installed) continue;
-        const installPlan = await getRuntimeInstallPlan(runtime, results, runtimeEnv);
-        results[runtime.id].installCmd = installPlan.ok ? installPlan.displayCommand : null;
-        results[runtime.id].installManager = installPlan.ok ? installPlan.manager : null;
-        results[runtime.id].installError = installPlan.ok ? null : installPlan.reason;
-        results[runtime.id].installRequiresElevation = !!installPlan.requiresElevation;
+        try {
+            const installPlan = await getRuntimeInstallPlan(runtime, results, runtimeEnv);
+            results[runtime.id].installCmd = installPlan.ok ? installPlan.displayCommand : null;
+            results[runtime.id].installManager = installPlan.ok ? installPlan.manager : null;
+            results[runtime.id].installError = installPlan.ok ? null : installPlan.reason;
+            results[runtime.id].installRequiresElevation = !!installPlan.requiresElevation;
+        } catch (err) {
+            console.error(`[envScanner] Error getting install plan for ${runtime.id}:`, err.message);
+        }
     }
+
+    const summary = Object.keys(results)
+        .map(k => `${k}: ${results[k].installed ? '✓' : '✗'}`)
+        .join(', ');
+    console.log(`[envScanner] Scan complete: ${summary}`);
 
     return results;
 }

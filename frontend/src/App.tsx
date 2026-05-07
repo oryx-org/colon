@@ -10,8 +10,6 @@ import Workspace from './components/Workspace/Workspace';
 import TerminalPanel, { TerminalPanelRef } from './components/TerminalPanel/TerminalPanel';
 import StatusBar from './components/StatusBar/StatusBar';
 import SearchPanel from './components/SearchPanel/SearchPanel';
-import SourceControlPanel from './components/SourceControlPanel/SourceControlPanel';
-import RunAndDebugPanel from './components/RunAndDebugPanel/RunAndDebugPanel';
 import LanguageManagerPanel from './components/LanguageManagerPanel/LanguageManagerPanel';
 import CommandPalette from './components/CommandPalette/CommandPalette';
 import SettingsModal, { loadSettings } from './components/SettingsModal/SettingsModal';
@@ -36,35 +34,8 @@ export interface RuntimeInfo {
   installCmd: string | null;
 }
 
-interface RuntimeInstallEvent {
-  installId: string;
-  runtimeId: string;
-  runtimeName: string;
-  type: 'start' | 'command' | 'stdout' | 'stderr' | 'error' | 'exit';
-  message: string;
-  timestamp: number;
-  code?: number;
-  signal?: string;
-  success?: boolean;
-}
 
-interface RuntimeInstallState {
-  installId: string | null;
-  runtimeId: string | null;
-  runtimeName: string | null;
-  inProgress: boolean;
-  succeeded: boolean | null;
-  logs: string[];
-}
 
-const INITIAL_INSTALL_STATE: RuntimeInstallState = {
-  installId: null,
-  runtimeId: null,
-  runtimeName: null,
-  inProgress: false,
-  succeeded: null,
-  logs: [],
-};
 
 function App() {
   const [leftTab, setLeftTab] = useState('folder');
@@ -106,7 +77,6 @@ function App() {
   const animations = activeFilePath ? (animsByFile[activeFilePath] || []) : [];
   const manimVideos = activeFilePath ? (manimVideosByFile[activeFilePath] || []) : [];
   const activeFileLineCount = activeFilePath ? (openFiles.find(f => f.path === activeFilePath)?.content?.split('\n').length || 0) : 0;
-  const [runtimeInstall, setRuntimeInstall] = useState<RuntimeInstallState>(INITIAL_INSTALL_STATE);
   const [cursorPos, setCursorPos] = useState({ line: 1, column: 1 });
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [animWidth, setAnimWidth] = useState(500);
@@ -126,86 +96,49 @@ function App() {
     return envs;
   }, []);
 
-  const appendInstallLog = useCallback((line: string) => {
-    setRuntimeInstall(prev => {
-      const normalized = line.endsWith('\n') ? line : `${line}\n`;
-      const nextLogs = [...prev.logs, normalized].slice(-500);
-      return { ...prev, logs: nextLogs };
-    });
-  }, []);
 
   const installMissingRuntime = useCallback(async (runtime: RuntimeInfo | undefined, reason: string) => {
-    const installCmd = runtime?.installCmd || '';
     const runtimeName = runtime?.name || 'Required runtime';
 
     setShowTerminal(true);
 
-    if (!installCmd) {
+    if (!runtime?.id) {
       terminalRef.current?.sendCommandToTerminal(
         `echo "⚠️ ${reason}" && echo "No automatic install command is available for this OS/runtime."`
       );
       return;
     }
 
+    const api = (window as any).electronAPI;
+    if (!api?.getInstallCommand) {
+      terminalRef.current?.sendCommandToTerminal(
+        `echo "⚠️ Installer API not available."`
+      );
+      return;
+    }
+
+    const result = await api.getInstallCommand(runtime.id);
+    if (!result?.success) {
+      terminalRef.current?.sendCommandToTerminal(
+        `echo "⚠️ ${result?.reason || 'No install command available for ' + runtimeName}"`
+      );
+      return;
+    }
+
     const shouldInstall = window.confirm(
-      `${reason}\n\nColon can run the recommended install command now:\n${installCmd}\n\n` +
-      'Continue? You may be asked for sudo/admin password in terminal.'
+      `${reason}\n\nColon will run the install command in terminal:\n${result.command}\n\n` +
+      'Continue? You can interact with the terminal during installation.'
     );
 
     if (!shouldInstall) {
       terminalRef.current?.sendCommandToTerminal(
-        `echo "ℹ️ Installation cancelled. Run manually: ${installCmd}"`
+        `echo "ℹ️ Installation cancelled. Run manually: ${result.command}"`
       );
       return;
     }
 
-    const api = (window as any).electronAPI;
-    if (!api?.installRuntime) {
-      terminalRef.current?.sendCommandToTerminal(
-        `echo "⚠️ Installer API not available. Run manually: ${installCmd}"`
-      );
-      return;
-    }
-
-    setRuntimeInstall({
-      installId: null,
-      runtimeId: runtime?.id || null,
-      runtimeName,
-      inProgress: true,
-      succeeded: null,
-      logs: [
-        `Starting installation for ${runtimeName}`,
-        `Command: ${installCmd}`,
-        'Waiting for installer output...'
-      ]
-    });
-
-    const start = await api.installRuntime(runtime?.id);
-    if (start?.alreadyInstalled) {
-      await refreshEnvironments();
-      setRuntimeInstall(prev => ({
-        ...prev,
-        inProgress: false,
-        succeeded: true,
-        logs: [...prev.logs, start.reason || `${runtimeName} is already installed.`]
-      }));
-      return;
-    }
-
-    if (!start?.success) {
-      setRuntimeInstall(prev => ({
-        ...prev,
-        inProgress: false,
-        succeeded: false,
-        logs: [...prev.logs, `Failed to start installer: ${start?.reason || 'Unknown error'}`]
-      }));
-      terminalRef.current?.sendCommandToTerminal(
-        `echo "⚠️ Failed to start installer. Run manually: ${installCmd}"`
-      );
-      return;
-    }
-
-    setRuntimeInstall(prev => ({ ...prev, installId: start.installId }));
+    // Send the command to the terminal
+    terminalRef.current?.sendCommandToTerminal(result.command);
   }, []);
 
   // Scan environments on startup
@@ -231,58 +164,19 @@ function App() {
     }
   }, [refreshEnvironments]);
 
+  // Refresh animation engine status when opening the animation tab
   useEffect(() => {
-    const api = (window as any).electronAPI;
-    if (!api?.onRuntimeInstallEvent) return;
-
-    const onEvent = async (evt: RuntimeInstallEvent) => {
-      if (evt.type === 'start') {
-        setRuntimeInstall(prev => ({
-          ...prev,
-          installId: evt.installId,
-          runtimeId: evt.runtimeId,
-          runtimeName: evt.runtimeName,
-          inProgress: true,
-          succeeded: null,
-        }));
+    if (rightTab === 'video') {
+      const api = (window as any).electronAPI;
+      if (api?.animEngine?.check) {
+        api.animEngine.check().then((status: any) => {
+            setAnimEngineInstalled(status?.installed || false);
+        });
       }
-
-      if (evt.type === 'command') appendInstallLog(`$ ${evt.message}`);
-      if (evt.type === 'stdout') appendInstallLog(evt.message);
-      if (evt.type === 'stderr') appendInstallLog(evt.message);
-      if (evt.type === 'error') appendInstallLog(`ERROR: ${evt.message}`);
-
-      if (evt.type === 'exit') {
-        appendInstallLog(evt.message);
-        const success = !!evt.success;
-        setRuntimeInstall(prev => ({ ...prev, inProgress: false, succeeded: success }));
-        await refreshEnvironments();
-        terminalRef.current?.sendCommandToTerminal(
-          `echo "${success ? '✅' : '⚠️'} ${evt.runtimeName} install ${success ? 'completed' : 'failed'}"`
-        );
-      }
-    };
-
-    const unsubscribe = api.onRuntimeInstallEvent(onEvent);
-    return () => {
-      if (typeof unsubscribe === 'function') {
-        unsubscribe();
-      } else {
-        api.removeRuntimeInstallListeners?.();
-      }
-    };
-  }, [appendInstallLog, refreshEnvironments]);
-
-  const cancelRuntimeInstall = useCallback(async () => {
-    const api = (window as any).electronAPI;
-    if (!runtimeInstall.installId || !api?.cancelRuntimeInstall) return;
-    const res = await api.cancelRuntimeInstall(runtimeInstall.installId);
-    if (!res?.success) {
-      appendInstallLog(`Cancel failed: ${res?.reason || 'Unknown error'}`);
-      return;
     }
-    appendInstallLog('Cancellation requested. Waiting for process exit...');
-  }, [runtimeInstall.installId, appendInstallLog]);
+  }, [rightTab]);
+
+
 
   // Load saved animations when active file changes
   useEffect(() => {
@@ -916,21 +810,14 @@ function App() {
       <div style={{ display: leftTab === 'search' ? 'flex' : 'none', flex: 1, height: '100%', width: '100%' }}>
         <SearchPanel onFileClick={handleOpenFile} />
       </div>
-      <div style={{ display: leftTab === 'git' ? 'flex' : 'none', flex: 1, height: '100%', width: '100%' }}>
-        <SourceControlPanel onFileClick={handleOpenFile} />
-      </div>
-      <div style={{ display: leftTab === 'debug' ? 'flex' : 'none', flex: 1, height: '100%', width: '100%' }}>
-        <RunAndDebugPanel 
-            activeFileName={activeFileRef.current?.name}
-            activeFilePath={activeFileRef.current?.path}
-            activeLanguage={activeFileRef.current?.language}
-            onRunFile={runActiveFile} 
-            onStopRun={stopRunningCode}
-            isRunning={isRunning}
-        />
-      </div>
       <div style={{ display: leftTab === 'category' ? 'flex' : 'none', flex: 1, height: '100%', width: '100%' }}>
-        <LanguageManagerPanel />
+        <LanguageManagerPanel 
+                onRunInTerminal={(cmd: string) => {
+                  setShowTerminal(true);
+                  setTimeout(() => terminalRef.current?.sendCommandToTerminal(cmd), 100);
+                }}
+                onShowTerminal={() => setShowTerminal(true)}
+              />
       </div>
     </div>
   );
@@ -1034,69 +921,6 @@ function App() {
         ]}
       />
 
-      {runtimeInstall.runtimeName && (
-        <div
-          style={{
-            position: 'fixed',
-            right: 16,
-            bottom: 16,
-            width: 'min(520px, calc(100vw - 32px))',
-            maxHeight: 300,
-            background: '#0f1726',
-            border: '1px solid #2a3a5f',
-            borderRadius: 10,
-            boxShadow: '0 12px 30px rgba(0,0,0,0.35)',
-            zIndex: 2000,
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden'
-          }}
-        >
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            padding: '8px 12px',
-            background: '#101c33',
-            borderBottom: '1px solid #233251'
-          }}>
-            <strong style={{ fontSize: 13 }}>
-              Runtime Install: {runtimeInstall.runtimeName}
-              {runtimeInstall.inProgress ? ' (in progress)' : runtimeInstall.succeeded === true ? ' (done)' : runtimeInstall.succeeded === false ? ' (failed)' : ''}
-            </strong>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {runtimeInstall.inProgress && (
-                <button className="run-btn stop" onClick={cancelRuntimeInstall} title="Cancel installation">
-                  Cancel
-                </button>
-              )}
-              {!runtimeInstall.inProgress && (
-                <button
-                  className="run-btn"
-                  onClick={() => setRuntimeInstall(INITIAL_INSTALL_STATE)}
-                  title="Dismiss install panel"
-                >
-                  Close
-                </button>
-              )}
-            </div>
-          </div>
-          <pre
-            style={{
-              margin: 0,
-              padding: 10,
-              overflow: 'auto',
-              color: '#dbe7ff',
-              fontSize: 12,
-              lineHeight: 1.35,
-              background: '#0b1424',
-              whiteSpace: 'pre-wrap'
-            }}
-          >
-            {runtimeInstall.logs.join('') || 'Waiting for logs...'}
-          </pre>
-        </div>
-      )}
     <SettingsModal 
         isOpen={showSettings} 
         onClose={() => setShowSettings(false)} 

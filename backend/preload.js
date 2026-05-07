@@ -38,6 +38,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // Environment Scanner
     scanEnvironments: () => ipcRenderer.invoke('env:scan'),
     getEnvironments: () => ipcRenderer.invoke('env:get'),
+    getInstallCommand: (runtimeId) => ipcRenderer.invoke('env:getInstallCommand', runtimeId),
     installRuntime: (runtimeId) => ipcRenderer.invoke('env:installRuntime', runtimeId),
     cancelRuntimeInstall: (installId) => ipcRenderer.invoke('env:cancelRuntimeInstall', installId),
     onRuntimeInstallEvent: (callback) => {
@@ -54,25 +55,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // Search
     searchInFiles: (query, options) => ipcRenderer.invoke('search:inFiles', query, options),
     replaceInFiles: (query, replacement, options) => ipcRenderer.invoke('search:replaceInFiles', query, replacement, options),
-
-    // Git
-    git: {
-        status: (cwd) => ipcRenderer.invoke('git:status', cwd),
-        branch: (cwd) => ipcRenderer.invoke('git:branch', cwd),
-        init: (cwd) => ipcRenderer.invoke('git:init', cwd),
-        addAll: (cwd) => ipcRenderer.invoke('git:addAll', cwd),
-        addFile: (cwd, file) => ipcRenderer.invoke('git:addFile', cwd, file),
-        commit: (cwd, message) => ipcRenderer.invoke('git:commit', cwd, message),
-        checkoutFile: (cwd, file) => ipcRenderer.invoke('git:checkoutFile', cwd, file)
-    },
-
-    // Debugger
-    debug: {
-        start: (filePath, language, options) => ipcRenderer.invoke('debug:start', { filePath, language, options }),
-        stop: (sessionId) => ipcRenderer.invoke('debug:stop', sessionId),
-        step: (sessionId, action) => ipcRenderer.invoke('debug:step', { sessionId, action }),
-        status: (sessionId) => ipcRenderer.invoke('debug:status', sessionId)
-    },
 
     // Animation System (LLM Engine)
     animation: {

@@ -1,4 +1,4 @@
-import { LuGitBranch, LuBell, LuCircleX, LuTriangleAlert } from 'react-icons/lu';
+import { LuBell, LuCircleX, LuTriangleAlert } from 'react-icons/lu';
 
 import './StatusBar.css';
 
@@ -55,10 +55,6 @@ function StatusBar({
     return (
         <div className="status-bar">
             <div className="status-left">
-                <div className="status-item branch">
-                    <LuGitBranch size={13} />
-                    <span>main</span>
-                </div>
                 <div className="status-item">
                     <LuCircleX size={13} className="status-error-icon" />
                     <span>0</span>

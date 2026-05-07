@@ -20,8 +20,6 @@ const { generateAnimation, loadAnimations, deleteAnimation: deleteAnim, clearAni
 const { isConfigured: isLlmConfigured, getConfig: getLlmConfig } = require('./services/llmService');
 const { generateManimVideo, loadManimVideos, deleteManimVideo, cancelManimVideo } = require('./services/manimService');
 const { checkAnimEngine, installAnimEngine } = require('./services/animEngineService');
-const { getStatus, runGit } = require('./services/gitService');
-const debugService = require('./services/debugService');
 const { startLspServer, getLspToken } = require('./services/lspServer');
 
 ipcMain.handle('lsp:getToken', () => getLspToken());
@@ -352,6 +350,36 @@ ipcMain.handle('env:get', async () => {
     return cachedEnvironments;
 });
 
+ipcMain.handle('env:getInstallCommand', async (event, runtimeId) => {
+    try {
+        const runtime = RUNTIMES.find((r) => r.id === runtimeId);
+        if (!runtime) {
+            return { success: false, reason: 'Unknown runtime: ' + runtimeId };
+        }
+        if (!cachedEnvironments) {
+            cachedEnvironments = await scanEnvironments();
+        }
+        if (cachedEnvironments[runtimeId] && cachedEnvironments[runtimeId].installed) {
+            return { success: false, alreadyInstalled: true, reason: runtime.name + ' is already installed.' };
+        }
+        const runtimeEnv = await createRuntimeEnv();
+        const installPlan = await getRuntimeInstallPlan(runtime, cachedEnvironments, runtimeEnv);
+        if (!installPlan.ok) {
+            return { success: false, reason: installPlan.reason };
+        }
+        return {
+            success: true,
+            command: installPlan.displayCommand || installPlan.command,
+            runtimeId,
+            runtimeName: runtime.name,
+            manager: installPlan.manager,
+            requiresElevation: !!installPlan.requiresElevation
+        };
+    } catch (err) {
+        return { success: false, reason: err.message };
+    }
+});
+
 ipcMain.handle('env:installRuntime', async (event, runtimeId) => {
     try {
         const runtime = RUNTIMES.find((r) => r.id === runtimeId);
@@ -438,14 +466,28 @@ ipcMain.handle('env:installRuntime', async (event, runtimeId) => {
 
         child.on('close', async (code, signal) => {
             delete runtimeInstallProcesses[installId];
-            // Wait for PATH registry changes to propagate before re-scanning
-            await new Promise(resolve => setTimeout(resolve, 3000));
-            cachedEnvironments = await scanEnvironments();
-            const verified = !!cachedEnvironments[runtime.id]?.installed;
-            const lookedAlreadyInstalled = /already installed|existing package already installed|no newer package versions are available|no available upgrade/i.test(outputBuffer);
             const validExitCodes = installPlan.validExitCodes || [0];
             const commandSucceeded = code !== null && validExitCodes.includes(code);
-            const success = verified || commandSucceeded || (code !== null && lookedAlreadyInstalled);
+
+            // Re-scan with retries: PATH registry updates can take several seconds
+            // to propagate, especially with WinGet. Try up to 3 times with
+            // increasing delays before giving up.
+            let verified = false;
+            const delays = [3000, 5000, 7000];
+            for (let attempt = 0; attempt < delays.length; attempt++) {
+                sendEvent('stdout', `\nVerifying installation (attempt ${attempt + 1}/${delays.length})...\n`);
+                await new Promise(resolve => setTimeout(resolve, delays[attempt]));
+                // Force a completely fresh scan (re-reads registry PATH)
+                cachedEnvironments = await scanEnvironments();
+                verified = !!cachedEnvironments[runtime.id]?.installed;
+                if (verified) {
+                    console.log(`[main.js] ${runtime.name} verified on attempt ${attempt + 1}`);
+                    break;
+                }
+                console.log(`[main.js] ${runtime.name} not detected on attempt ${attempt + 1}, retrying...`);
+            }
+
+            const success = verified;
             const exitText = signal
                 ? `Install process stopped (${signal}).`
                 : `Install process exited with code ${code}.`;
@@ -657,56 +699,9 @@ ipcMain.handle('animEngine:install', async (event) => {
     }
 });
 
-function resolveGitCwd(cwd) {
-    if (cwd && isPathWithinWorkspace(cwd)) return cwd;
-    return resolveDefaultCwd();
-}
 
-ipcMain.handle('git:status', async (event, cwd) => {
-    return await getStatus(resolveGitCwd(cwd));
-});
 
-ipcMain.handle('git:branch', async (event, cwd) => {
-    const res = await runGit(['branch', '--show-current'], resolveGitCwd(cwd));
-    return res.success ? res.stdout : null;
-});
 
-ipcMain.handle('git:init', async (event, cwd) => {
-    return await runGit(['init'], resolveGitCwd(cwd));
-});
-
-ipcMain.handle('git:addAll', async (event, cwd) => {
-    return await runGit(['add', '.'], resolveGitCwd(cwd));
-});
-
-ipcMain.handle('git:addFile', async (event, cwd, file) => {
-    return await runGit(['add', '--', file], resolveGitCwd(cwd));
-});
-
-ipcMain.handle('git:commit', async (event, cwd, message) => {
-    return await runGit(['commit', '-m', String(message || '')], resolveGitCwd(cwd));
-});
-
-ipcMain.handle('git:checkoutFile', async (event, cwd, file) => {
-    return await runGit(['checkout', '--', file], resolveGitCwd(cwd));
-});
-
-// Debugger IPC handers
-ipcMain.handle('debug:start', async (event, { filePath, language, options }) => {
-    return debugService.startSession(filePath, language, options);
-});
-
-ipcMain.handle('debug:stop', async (event, processId) => {
-    return debugService.stopSession(processId);
-});
-
-ipcMain.handle('debug:step', async (event, { sessionId, action }) => {
-    return debugService.sendStep(sessionId, action);
-});
-
-ipcMain.handle('debug:status', async (event, sessionId) => {
-    return debugService.getSessionStatus(sessionId);
-});
 
 const ptyProcesses = {};
 

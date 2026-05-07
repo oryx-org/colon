@@ -62,9 +62,7 @@ const menus: Record<string, { label: string; shortcut?: string; action?: string;
     Run: [
         { label: 'Run Code (No Debugging)', shortcut: 'F5', action: 'runCode' },
         { label: 'Stop Code', shortcut: 'Shift+F5', action: 'stopCode' },
-        { label: '', separator: true },
-        { label: 'Start Debugging', shortcut: 'Ctrl+F5', action: 'startDebugging' },
-        { label: 'Add Breakpoint', shortcut: 'F9', action: 'addBreakpoint' },
+        
     ],
     Terminal: [
         { label: 'New Terminal', shortcut: 'Ctrl+Shift+`', action: 'newTerminal' },

@@ -1,4 +1,4 @@
-import { LuRefreshCw, LuCloudDownload, LuCheck, LuCircleX } from 'react-icons/lu';
+import { LuRefreshCw, LuCloudDownload, LuCheck, LuCircleX, LuTerminal } from 'react-icons/lu';
 import { useState, useEffect } from 'react';
 
 import './LanguageManagerPanel.css';
@@ -12,20 +12,20 @@ interface RuntimeEnvironment {
     command?: string;
     extensions?: string[];
     installCmd?: string;
+    reason?: string;
+    installError?: string;
+    installManager?: string;
 }
 
-interface InstallProgress {
-    runtimeId: string;
-    status: 'installing' | 'failed' | 'success';
-    stdout?: string;
-    stderr?: string;
-    error?: string;
+interface LanguageManagerPanelProps {
+    onRunInTerminal?: (command: string) => void;
+    onShowTerminal?: () => void;
 }
 
-export default function LanguageManagerPanel() {
+export default function LanguageManagerPanel({ onRunInTerminal, onShowTerminal }: LanguageManagerPanelProps) {
     const [environments, setEnvironments] = useState<Record<string, RuntimeEnvironment>>({});
     const [isLoading, setIsLoading] = useState(true);
-    const [installProgress, setInstallProgress] = useState<Record<string, InstallProgress>>({});
+    const [sentToTerminal, setSentToTerminal] = useState<Record<string, boolean>>({});
 
     const [animEngineStatus, setAnimEngineStatus] = useState<{
         installed: boolean;
@@ -60,6 +60,8 @@ export default function LanguageManagerPanel() {
         try {
             const envs = await electron.scanEnvironments();
             setEnvironments(envs);
+            // Clear "sent to terminal" flags on re-scan so badges update properly
+            setSentToTerminal({});
         } catch (e) {
             console.error('Failed to scan environments', e);
         } finally {
@@ -85,64 +87,41 @@ export default function LanguageManagerPanel() {
                 });
             });
         }
-
-        if (electron?.onRuntimeInstallEvent) {
-            electron.onRuntimeInstallEvent((payload: any) => {
-                setInstallProgress(prev => {
-                    const current = prev[payload.runtimeId] || { runtimeId: payload.runtimeId, status: 'installing' };
-                    
-                    if (payload.type === 'exit') {
-                        // Backend sends type:'exit' with success:true/false on completion
-                        const status = payload.success ? 'success' : 'failed';
-                        if (payload.success) {
-                            // Re-scan environments after successful install
-                            scanEnvironments();
-                        }
-                        return { ...prev, [payload.runtimeId]: { ...current, status, error: payload.success ? undefined : payload.message } };
-                    } else if (payload.type === 'error') {
-                        return { ...prev, [payload.runtimeId]: { ...current, status: 'failed', error: payload.message } };
-                    } else if (payload.type === 'stdout' || payload.type === 'stderr') {
-                        return { ...prev, [payload.runtimeId]: { ...current, status: 'installing', stdout: payload.message } };
-                    } else if (payload.type === 'start') {
-                        return { ...prev, [payload.runtimeId]: { runtimeId: payload.runtimeId, status: 'installing' } };
-                    }
-                    return prev;
-                });
-            });
-        }
         
         return () => {
-            if (electron?.removeRuntimeInstallListeners) {
-                electron.removeRuntimeInstallListeners();
-            }
             if (electron?.animEngine?.removeInstallListeners) {
                 electron.animEngine.removeInstallListeners();
             }
         };
     }, []);
 
+    /** Terminal-based install: get the command and send it to the IDE terminal */
     const handleInstall = async (runtimeId: string) => {
-        if (!electron?.installRuntime) return;
-        setInstallProgress(prev => ({
-            ...prev,
-            [runtimeId]: { runtimeId, status: 'installing' }
-        }));
+        if (!electron?.getInstallCommand) return;
+
         try {
-            const success = await electron.installRuntime(runtimeId);
-            if (success) {
-                // re-scan
+            const result = await electron.getInstallCommand(runtimeId);
+
+            if (result?.alreadyInstalled) {
+                // Already installed — just re-scan to refresh the UI
                 scanEnvironments();
-            } else {
-                setInstallProgress(prev => ({
-                    ...prev,
-                    [runtimeId]: { runtimeId, status: 'failed', error: 'Installation failed' }
-                }));
+                return;
             }
+
+            if (!result?.success) {
+                // Show error inline — no command available
+                alert(result?.reason || 'No install command available for this runtime.');
+                return;
+            }
+
+            // Show the terminal and send the install command
+            onShowTerminal?.();
+            onRunInTerminal?.(result.command);
+
+            // Mark this runtime as "sent to terminal" for UI feedback
+            setSentToTerminal(prev => ({ ...prev, [runtimeId]: true }));
         } catch (e: any) {
-            setInstallProgress(prev => ({
-                ...prev,
-                [runtimeId]: { runtimeId, status: 'failed', error: e.message }
-            }));
+            alert(`Failed to get install command: ${e.message}`);
         }
     };
 
@@ -173,7 +152,7 @@ export default function LanguageManagerPanel() {
         <div className="language-manager">
             <div className="lm-header">
                 <span className="lm-title">EXTENSIONS</span>
-                <button className="lm-refresh-btn" onClick={scanEnvironments} title="Scan for Runtimes" disabled={isLoading}>
+                <button className="lm-refresh-btn" onClick={scanEnvironments} title="Re-scan for installed runtimes" disabled={isLoading}>
                     <LuRefreshCw className={isLoading ? 'spinning' : ''} />
                 </button>
             </div>
@@ -241,8 +220,7 @@ export default function LanguageManagerPanel() {
                 <div className="lm-section-label">LANGUAGES</div>
 
                 {Object.values(environments).map(env => {
-                    const progress = installProgress[env.id];
-                    const isInstalling = progress?.status === 'installing';
+                    const wasSentToTerminal = sentToTerminal[env.id];
                     
                     return (
                         <div key={env.id} className="lm-card">
@@ -250,6 +228,8 @@ export default function LanguageManagerPanel() {
                                 <h3 className="lm-card-title">{env.name}</h3>
                                 {env.installed ? (
                                     <span className="lm-badge success"><LuCheck /> Installed</span>
+                                ) : wasSentToTerminal ? (
+                                    <span className="lm-badge installing"><LuTerminal /> Installing</span>
                                 ) : (
                                     <span className="lm-badge missing">Missing</span>
                                 )}
@@ -261,15 +241,23 @@ export default function LanguageManagerPanel() {
                                         <div><span className="lm-label">Version: </span> {env.version}</div>
                                         <div><span className="lm-label">Path: </span> <span className="lm-path">{env.path}</span></div>
                                     </>
+                                ) : wasSentToTerminal ? (
+                                    <div className="lm-terminal-hint">
+                                        <LuTerminal style={{ flexShrink: 0, marginTop: 1 }} />
+                                        <span>
+                                            Install command sent to terminal. Complete the installation there, 
+                                            then click <strong>Refresh</strong> <LuRefreshCw style={{ verticalAlign: 'middle', fontSize: 11 }} /> above to re-scan.
+                                        </span>
+                                    </div>
                                 ) : (
                                     <div className="lm-not-installed-msg">
-                                        This runtime is not installed on your system.
+                                        {env.reason || 'This runtime is not installed on your system.'}
                                     </div>
                                 )}
-                                
-                                {progress?.status === 'failed' && (
-                                    <div className="lm-error">
-                                        <LuCircleX /> {progress.error}
+
+                                {env.installError && !env.installed && !wasSentToTerminal && (
+                                    <div className="lm-not-installed-msg" style={{ fontSize: 11, opacity: 0.7, marginTop: 4 }}>
+                                        {env.installError}
                                     </div>
                                 )}
                             </div>
@@ -277,12 +265,28 @@ export default function LanguageManagerPanel() {
                             <div className="lm-card-actions">
                                 {!env.installed && env.installCmd && (
                                     <button 
-                                        className="lm-install-btn" 
+                                        className="lm-install-btn"
                                         onClick={() => handleInstall(env.id)}
-                                        disabled={isInstalling}
+                                        disabled={wasSentToTerminal}
+                                        title={wasSentToTerminal 
+                                            ? 'Install command already sent to terminal' 
+                                            : `Install ${env.name} via ${env.installManager || 'system installer'}`
+                                        }
                                     >
-                                        <LuCloudDownload /> {isInstalling ? 'Installing...' : 'Install via System'}
+                                        <LuTerminal /> {wasSentToTerminal ? 'Sent to Terminal' : 'Install'}
                                     </button>
+                                )}
+                                {wasSentToTerminal && !env.installed && (
+                                    <button 
+                                        className="lm-rescan-btn"
+                                        onClick={scanEnvironments}
+                                        disabled={isLoading}
+                                    >
+                                        <LuRefreshCw className={isLoading ? 'spinning' : ''} /> Re-scan
+                                    </button>
+                                )}
+                                {!env.installed && !env.installCmd && !env.installError && (
+                                    <span style={{ fontSize: 11, opacity: 0.5 }}>No installer available for this OS</span>
                                 )}
                             </div>
                         </div>
