@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "main": "main.js",
   "description": "Colon — AI-Powered Desktop IDE with Code Animation",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/oryx-org/colon.git"
+  },
   "scripts": {
     "start": "electron . --no-sandbox",
     "dev": "concurrently \"cd ../frontend && npm run dev\" \"wait-on http://localhost:5173 && electron . --no-sandbox\"",
@@ -10,9 +14,9 @@
     "build:frontend": "npm --prefix ../frontend run build",
     "package": "npm run build:frontend && electron-builder",
     "package:dir": "npm run build:frontend && electron-builder --dir",
-    "package:linux": "npm run build:frontend && electron-builder --linux",
-    "package:win": "npm run build:frontend && electron-builder --win",
-    "package:mac": "npm run build:frontend && electron-builder --mac",
+    "package:linux": "npm run build:frontend && electron-builder --linux --publish never",
+    "package:win": "npm run build:frontend && electron-builder --win --publish never",
+    "package:mac": "npm run build:frontend && electron-builder --mac --publish never",
     "test": "node --test tests/*.js"
   },
   "keywords": [
