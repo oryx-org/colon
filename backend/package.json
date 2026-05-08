@@ -25,7 +25,10 @@
     "electron",
     "ide"
   ],
-  "author": "Colon IDE Team",
+  "author": {
+    "name": "Colon IDE Team",
+    "email": "team@colonide.dev"
+  },
   "license": "ISC",
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
