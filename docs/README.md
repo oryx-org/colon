@@ -97,7 +97,7 @@ cd backend
 cd frontend && npm install
 
 # Start in development mode
-cd ../desktop
+cd ../backend
 npm install
 npm run dev
 # Electron window opens with React loaded from Vite dev server

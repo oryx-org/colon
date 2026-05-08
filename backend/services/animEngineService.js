@@ -208,7 +208,7 @@ async function checkAnimEngine() {
         ], env);
     }
 
-    result.engineFound = !!manimOutput;
+    result.engineFound = Boolean(manimOutput);
     if (manimOutput) {
         // Parse version: "Manim Community v0.18.0" or "Manim 0.18.0" or similar
         const match = manimOutput.match(/v?([\d.]+)/);
@@ -227,7 +227,7 @@ async function checkAnimEngine() {
             'import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())'
         ], env);
         if (bundledFfmpeg && bundledFfmpeg.trim() && !bundledFfmpeg.includes('Error') && !bundledFfmpeg.includes('Traceback')) {
-            const ffmpegPath = bundledFfmpeg.trim().split(/\r?\n/)[0];
+            const [ffmpegPath] = bundledFfmpeg.trim().split(/\r?\n/);
             // Verify the bundled binary actually exists
             if (fs.existsSync(ffmpegPath)) {
                 result.ffmpegFound = true;

@@ -47,10 +47,10 @@ function parseGcc(output, tmpFile) {
         if (match) {
             markers.push({
                 severity: match[3] === 'error' ? 8 : 4,
-                startLineNumber: parseInt(match[1]),
-                startColumn: parseInt(match[2]),
-                endLineNumber: parseInt(match[1]),
-                endColumn: parseInt(match[2]) + 1, // rough estimate
+                startLineNumber: parseInt(match[1], 10),
+                startColumn: parseInt(match[2], 10),
+                endLineNumber: parseInt(match[1], 10),
+                endColumn: parseInt(match[2], 10) + 1, // rough estimate
                 message: match[4],
                 source: 'gcc'
             });
@@ -70,9 +70,9 @@ function parseJavac(output, tmpFile) {
         if (match) {
             markers.push({
                 severity: 8,
-                startLineNumber: parseInt(match[1]),
+                startLineNumber: parseInt(match[1], 10),
                 startColumn: 1,
-                endLineNumber: parseInt(match[1]),
+                endLineNumber: parseInt(match[1], 10),
                 endColumn: 99, // Highlight whole line
                 message: match[2],
                 source: 'javac'
@@ -92,10 +92,10 @@ function parseTsc(output, tmpFile) {
         if (match) {
             markers.push({
                 severity: match[3] === 'error' ? 8 : 4,
-                startLineNumber: parseInt(match[1]),
-                startColumn: parseInt(match[2]),
-                endLineNumber: parseInt(match[1]),
-                endColumn: parseInt(match[2]) + 1,
+                startLineNumber: parseInt(match[1], 10),
+                startColumn: parseInt(match[2], 10),
+                endLineNumber: parseInt(match[1], 10),
+                endColumn: parseInt(match[2], 10) + 1,
                 message: match[4].trim(),
                 source: 'tsc'
             });
@@ -114,10 +114,10 @@ function parseGoVet(output) {
         if (match) {
             markers.push({
                 severity: 8,
-                startLineNumber: parseInt(match[1]),
-                startColumn: parseInt(match[2]),
-                endLineNumber: parseInt(match[1]),
-                endColumn: parseInt(match[2]) + 1,
+                startLineNumber: parseInt(match[1], 10),
+                startColumn: parseInt(match[2], 10),
+                endLineNumber: parseInt(match[1], 10),
+                endColumn: parseInt(match[2], 10) + 1,
                 message: match[3].trim(),
                 source: 'go vet'
             });
@@ -137,7 +137,8 @@ function parseRustc(output, tmpFile) {
         if (line.startsWith('error') || line.startsWith('warning')) {
             const msgMatch = line.match(/^(error|warning)(?:\[.*?\])?:\s*(.*)/);
             if (msgMatch) {
-                pendingMsg = msgMatch[2];
+                const [, pendingMsgText] = msgMatch;
+                pendingMsg = pendingMsgText;
                 pendingSeverity = msgMatch[1] === 'error' ? 8 : 4;
             }
         }
@@ -145,10 +146,10 @@ function parseRustc(output, tmpFile) {
         if (locMatch && pendingMsg) {
             markers.push({
                 severity: pendingSeverity,
-                startLineNumber: parseInt(locMatch[1]),
-                startColumn: parseInt(locMatch[2]),
-                endLineNumber: parseInt(locMatch[1]),
-                endColumn: parseInt(locMatch[2]) + 1,
+                startLineNumber: parseInt(locMatch[1], 10),
+                startColumn: parseInt(locMatch[2], 10),
+                endLineNumber: parseInt(locMatch[1], 10),
+                endColumn: parseInt(locMatch[2], 10) + 1,
                 message: pendingMsg,
                 source: 'rustc'
             });
@@ -182,7 +183,7 @@ async function lintCode(fileName, content) {
 
     try {
         if (ext === '.py') {
-            const pyrightBin = path.join(__dirname, '..', 'node_modules', '.bin', 'pyright' + BIN_EXT);
+            const pyrightBin = path.join(__dirname, '..', 'node_modules', '.bin', `pyright${BIN_EXT}`);
             const result = await runCmd(pyrightBin, ['--outputjson', tmpFile]);
             markers = parsePyright(result.stdout);
 
@@ -196,7 +197,7 @@ async function lintCode(fileName, content) {
             markers = parseJavac(result.stderr, tmpFile);
 
         } else if (ext === '.ts' || ext === '.tsx') {
-            const tscBin = path.join(__dirname, '..', 'node_modules', '.bin', 'tsc' + BIN_EXT);
+            const tscBin = path.join(__dirname, '..', 'node_modules', '.bin', `tsc${BIN_EXT}`);
             // --noEmit: type-check only, --strict: full strictness, --allowJs: for .tsx
             const result = await runCmd(tscBin, [
                 '--noEmit', '--strict', '--allowJs', '--jsx', 'react',
@@ -214,7 +215,7 @@ async function lintCode(fileName, content) {
             if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
             const result = await runCmd('rustc', [
                 '--error-format=human', '--edition', '2021',
-                '-o', path.join(outDir, 'out' + (process.platform === 'win32' ? '.exe' : '')), tmpFile
+                '-o', path.join(outDir, `out${process.platform === 'win32' ? '.exe' : ''}`), tmpFile
             ]);
             markers = parseRustc((result.stderr || '') + (result.stdout || ''), tmpFile);
         }

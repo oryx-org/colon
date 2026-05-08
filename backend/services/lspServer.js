@@ -16,7 +16,7 @@ function findBin(name) {
 
 const crypto = require('crypto');
 
-let lspToken = crypto.randomBytes(16).toString('hex');
+const lspToken = crypto.randomBytes(16).toString('hex');
 
 function getLspToken() {
     return lspToken;

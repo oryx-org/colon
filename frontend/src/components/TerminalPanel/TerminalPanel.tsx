@@ -34,7 +34,7 @@ interface TerminalPanelProps {
 }
 
 let termCounter = 0;
-const uid = () => `t${++termCounter}`;
+const uid = () => { termCounter += 1; return `t${termCounter}`; };
 const gid = () => `g${Math.random().toString(36).substring(2, 7)}`;
 
 const TerminalPanel = forwardRef<TerminalPanelRef, TerminalPanelProps>(({ onClose, onMaximize, isMaximized }, ref) => {
@@ -75,7 +75,7 @@ const TerminalPanel = forwardRef<TerminalPanelRef, TerminalPanelProps>(({ onClos
 
         setEntries(prev => [...prev, { id, name }]);
         setGroups(prev => prev.map(g =>
-            g.id === agid ? { ...g, terminals: [...g.terminals, id] } : g
+            (g.id === agid ? { ...g, terminals: [...g.terminals, id] } : g)
         ));
         setActiveTId(id);
     }, [activeGroupId, createTerminal]);
@@ -98,7 +98,7 @@ const TerminalPanel = forwardRef<TerminalPanelRef, TerminalPanelProps>(({ onClos
             setActiveGroupId(ag => {
                 const stillExists = updated.find(g => g.id === ag);
                 if (stillExists) {
-                    setActiveTId(at => stillExists.terminals.includes(at ?? '') ? at : stillExists.terminals[stillExists.terminals.length - 1]);
+                    setActiveTId(at => (stillExists.terminals.includes(at ?? '') ? at : stillExists.terminals[stillExists.terminals.length - 1]));
                     return ag;
                 }
                 const fallback = updated[updated.length - 1] ?? null;
@@ -141,7 +141,7 @@ const TerminalPanel = forwardRef<TerminalPanelRef, TerminalPanelProps>(({ onClos
                 const electron = (window as any).electronAPI;
                 if (electron?.terminal) {
                     // Use CR (Enter key semantics) instead of LF to avoid prompt/output misalignment.
-                    electron.terminal.input(id, command + '\r');
+                    electron.terminal.input(id, `${command}\r`);
                 }
             }
         },
@@ -157,7 +157,7 @@ const TerminalPanel = forwardRef<TerminalPanelRef, TerminalPanelProps>(({ onClos
     }), [createTerminal, splitTerminal, killActiveTerminal]);
 
     const commitRename = (id: string) => {
-        setEntries(prev => prev.map(e => e.id === id ? { ...e, name: editingName } : e));
+        setEntries(prev => prev.map(e => (e.id === id ? { ...e, name: editingName } : e)));
         setEditingId(null);
     };
 
@@ -350,5 +350,7 @@ const TerminalPanel = forwardRef<TerminalPanelRef, TerminalPanelProps>(({ onClos
         </div>
     );
 });
+
+TerminalPanel.displayName = 'TerminalPanel';
 
 export default TerminalPanel;

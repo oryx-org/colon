@@ -109,6 +109,7 @@ function XTermView({ terminalId, isVisible, onFocus }: XTermViewProps) {
                         const api = (window as any).electronAPI;
                         api?.terminal?.input(terminalId, text);
                     }
+                    return undefined;
                 }).catch(() => {});
                 return false;
             }
@@ -125,6 +126,7 @@ function XTermView({ terminalId, isVisible, onFocus }: XTermViewProps) {
                         const api = (window as any).electronAPI;
                         api?.terminal?.input(terminalId, text);
                     }
+                    return undefined;
                 }).catch(() => {});
                 return false;
             }

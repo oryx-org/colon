@@ -96,7 +96,7 @@ function validateManimImports(script) {
         // "from X import ..."
         match = trimmed.match(/^from\s+(\w+)/);
         if (match) {
-            const mod = match[1];
+            const [, mod] = match;
             if (BLOCKED_IMPORTS.has(mod)) {
                 throw new Error(`Blocked import detected: "${mod}". LLM-generated scripts cannot use ${mod} for security reasons.`);
             }
@@ -223,7 +223,7 @@ INSTRUCTIONS:
                 manimScript = extractPython(response);
                 break;
             } catch (err) {
-                retries++;
+                retries += 1;
                 if (retries > 2) throw err;
 
                 // Auto-wait on rate limit
@@ -245,7 +245,7 @@ INSTRUCTIONS:
                                     (m2 ? Math.ceil(parseFloat(m2[1])) + 1 : 12);
 
                     console.warn(`[manimService] Rate limited. Waiting ${waitSec}s...`);
-                    await new Promise(r => setTimeout(r, waitSec * 1000));
+                    await new Promise(resolve => setTimeout(resolve, waitSec * 1000));
                 } else {
                     console.warn(`[manimService] LLM retry ${retries}: ${err.message}`);
                 }
@@ -283,7 +283,7 @@ INSTRUCTIONS:
         let syntaxOk = await validatePythonSyntax(scenePath);
         let syntaxRetries = 0;
         while (!syntaxOk && syntaxRetries < 2) {
-            syntaxRetries++;
+            syntaxRetries += 1;
             console.warn(`[manimService] Syntax validation failed. Retrying LLM (attempt ${syntaxRetries})...`);
             try {
                 const retryResponse = await chatCompletion(SYSTEM_PROMPT, userPrompt, {
@@ -376,7 +376,7 @@ function runManim(scenePath, workDir) {
 
         // spawn timeout only sends SIGTERM; enforce manually
         const killTimer = setTimeout(() => {
-            try { process.platform === 'win32' ? currentProc.kill() : currentProc.kill('SIGKILL'); } catch { }
+            try { process.platform === 'win32' ? currentProc.kill() : currentProc.kill('SIGKILL'); } catch { /* ignore */ }
             reject(new Error('Manim render timed out after 2 minutes.'));
         }, 120000);
 
@@ -439,7 +439,7 @@ function extractPython(text) {
     // Step 4: Find the last valid Python line (cut off AI conversational trailing text).
     const lines = extracted.split('\n');
     let lastValidLine = 0;
-    for (let i = 0; i < lines.length; i++) {
+    for (let i = 0; i < lines.length; i += 1) {
         const line = lines[i];
         const trimmed = line.trim();
         const isBlank = trimmed === '';

@@ -28,7 +28,7 @@ async function testGroq() {
         res.on('end', () => {
             try {
                 const json = JSON.parse(data);
-                if (json.choices && json.choices[0]) {
+                if (json.choices?.[0]) {
                     console.log('RESPONSE:', json.choices[0].message.content);
                     console.log('STATUS: SUCCESS ✅');
                 } else {

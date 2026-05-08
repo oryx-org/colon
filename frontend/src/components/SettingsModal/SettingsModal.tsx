@@ -64,7 +64,7 @@ function SettingsModal({ isOpen, onClose, onSettingsChange }: SettingsModalProps
                             type="number"
                             value={settings.fontSize}
                             min={8} max={32}
-                            onChange={e => update('fontSize', parseInt(e.target.value) || 14)}
+                            onChange={e => update('fontSize', parseInt(e.target.value, 10) || 14)}
                         />
                     </div>
                     <div className="setting-group">
@@ -103,7 +103,7 @@ function SettingsModal({ isOpen, onClose, onSettingsChange }: SettingsModalProps
                         <label>Tab Size</label>
                         <select
                             value={settings.tabSize}
-                            onChange={e => update('tabSize', parseInt(e.target.value))}
+                            onChange={e => update('tabSize', parseInt(e.target.value, 10))}
                         >
                             <option value={2}>2 Spaces</option>
                             <option value={4}>4 Spaces</option>

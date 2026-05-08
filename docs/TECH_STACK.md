@@ -71,7 +71,7 @@
 ### Desktop (Electron)
 
 ```bash
-mkdir desktop && cd backend
+mkdir backend && cd backend
 npm init -y
 npm install electron electron-store
 npm install -D electron-builder electron-devtools-installer

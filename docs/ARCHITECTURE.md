@@ -123,13 +123,15 @@ Colon/
 │   ├── main.js                   # App entry, window creation
 │   ├── preload.js                # IPC bridge (security)
 │   ├── services/
-│   │   ├── fileSystem.js         # Read/write/watch files
+│   │   ├── animEngineService.js  # Animation engine installation & check
+│   │   ├── animationGenerator.js # Frame-based code execution animation
+│   │   ├── blockDetectorUniversal.js # Syntax block detection
 │   │   ├── codeRunner.js         # Compile & run user code
-│   │   ├── languageManager.js    # Download/install compilers
-│   │   ├── manimRenderer.js      # Run Manim locally
-│   │   ├── terminalService.js    # node-pty terminal
-│   │   ├── llmClient.js          # Call Gemini/GPT API
-│   │   └── scriptValidator.js    # Validate Manim scripts
+│   │   ├── envScanner.js         # Robust environment/runtime scanner
+│   │   ├── linterService.js      # Code linting
+│   │   ├── llmService.js         # Call Gemini/GPT/Anthropic API
+│   │   ├── lspServer.js          # Language Server Protocol logic
+│   │   └── manimService.js       # Validate scripts & Run Manim locally
 │   ├── config/
 │   │   ├── compilers.json        # Installed compiler paths
 │   │   └── languages.json        # Available languages + download URLs
@@ -153,11 +155,6 @@ Colon/
 │   │   └── styles/
 │   ├── package.json
 │   └── vite.config.js
-│
-├── manim-service/                # Manim templates + validator
-│   ├── templates/
-│   ├── validator.py
-│   └── requirements.txt
 │
 ├── docs/                         # This documentation
 ├── .gitignore

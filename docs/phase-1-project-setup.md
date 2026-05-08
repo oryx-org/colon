@@ -37,7 +37,7 @@ npm install -D electron-builder concurrently wait-on
 **`backend/package.json`** — add scripts:
 ```json
 {
-  "name": "Colon-desktop",
+  "name": "colon-backend",
   "main": "main.js",
   "scripts": {
     "start": "electron .",

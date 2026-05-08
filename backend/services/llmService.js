@@ -219,7 +219,7 @@ async function callGemini(apiKey, model, system, user, temperature, maxTokens) {
     // IMPORTANT: Clear the timer on success to avoid memory leaks (BUG-006).
     const timeoutMs = 120000;
     let timeoutId;
-    const timeoutPromise = new Promise((_, reject) => {
+    const timeoutPromise = new Promise((_resolve, reject) => {
         timeoutId = setTimeout(() => reject(new Error('Gemini request timeout (120s)')), timeoutMs);
     });
 

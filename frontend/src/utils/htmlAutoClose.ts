@@ -2,10 +2,10 @@ export function setupHtmlAutoClose(editor: any, monaco: any) {
     let timeout: number | null = null;
 
     editor.onDidChangeModelContent((event: any) => {
-        const changes = event.changes;
+        const { changes } = event;
         if (!changes || changes.length === 0) return;
 
-        const change = changes[0];
+        const [change] = changes;
 
         // Only react when the user types a closing bracket for a tag
         if (change.text === '>' && change.rangeLength === 0) {
@@ -32,10 +32,10 @@ export function setupHtmlAutoClose(editor: any, monaco: any) {
 
                 // Match <tagName> without attributes for simple auto-close
                 // Or <tagName attr="value"> 
-                const match = textUntilPosition.match(/<([a-zA-Z0-9\-]+)[^>]*>$/);
+                const match = textUntilPosition.match(/<([a-zA-Z0-9-]+)[^>]*>$/);
                 if (!match) return;
 
-                const tag = match[1];
+                const [, tag] = match;
 
                 // List of HTML void elements that shouldn't be auto-closed
                 const voidElements = [

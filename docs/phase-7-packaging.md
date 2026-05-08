@@ -163,7 +163,7 @@ jobs:
       - name: Build frontend
         run: cd frontend && npm run build
 
-      - name: Install desktop deps
+      - name: Install backend deps
         run: cd backend && npm ci
 
       - name: Build Electron app

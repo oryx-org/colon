@@ -200,7 +200,7 @@ function extractJSON(text) {
     }
 
     // Strip control characters that break JSON.parse
-    let cleaned = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+    const cleaned = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
 
     // Try raw parse first (happy path)
     try { return JSON.parse(cleaned); } catch { /* continue */ }
@@ -216,7 +216,7 @@ function extractJSON(text) {
     if (start === -1) {
         throw new Error('Could not parse animation JSON from LLM response');
     }
-    let slice = cleaned.slice(start);
+    const slice = cleaned.slice(start);
 
     // Try parsing with the last '}' as boundary
     const end = slice.lastIndexOf('}');
@@ -238,12 +238,12 @@ function extractJSON(text) {
     // Find the last complete frame: look for the pattern of a closing brace
     // followed by optional whitespace then either ',' or end-of-array ']'
     // Walk backwards through the string to find where the last clean frame ended
-    let repaired = slice;
+    const repaired = slice;
 
     // Try progressively cutting the tail until JSON parses
     // Find all positions of '}' and try each as a potential end of last complete frame
     const bracePositions = [];
-    for (let i = repaired.length - 1; i >= 0; i--) {
+    for (let i = repaired.length - 1; i >= 0; i -= 1) {
         if (repaired[i] === '}') bracePositions.push(i);
         if (bracePositions.length > 20) break; // Only try last 20 brace positions
     }
@@ -252,9 +252,9 @@ function extractJSON(text) {
         const candidate = repaired.slice(0, pos + 1);
         // Close the frames array and root object
         const attempts = [
-            candidate + ']}',
-            candidate + ']}'  ,
-            candidate + '}]}',
+            `${candidate}]}`,
+            `${candidate}]}`,
+            `${candidate}}}]}`,
         ];
         for (const attempt of attempts) {
             try {
@@ -279,7 +279,7 @@ function validateAnimation(data) {
     if (!data.title || typeof data.title !== 'string') throw new Error('Missing animation title');
     if (!Array.isArray(data.frames) || data.frames.length === 0) throw new Error('Missing or empty frames array');
 
-    for (let i = 0; i < data.frames.length; i++) {
+    for (let i = 0; i < data.frames.length; i += 1) {
         const f = data.frames[i];
         if (!f.caption) f.caption = `Step ${i + 1}`;
         if (!f.code) f.code = { source: '', highlight: [] };
@@ -362,7 +362,7 @@ Generate the animation JSON now.`;
             return record;
 
         } catch (err) {
-            retries++;
+            retries += 1;
             const isRateLimit = err.message && (
                 err.message.includes('Rate limit') ||
                 err.message.includes('rate_limit') ||
@@ -382,7 +382,7 @@ Generate the animation JSON now.`;
             if (isRateLimit) {
                 const waitSec = parseRetryAfter(err.message);
                 console.warn(`[animationGenerator] Rate limited. Waiting ${waitSec}s before retry ${retries}/${MAX_RETRIES}...`);
-                await new Promise(r => setTimeout(r, waitSec * 1000));
+                await new Promise(resolve => setTimeout(resolve, waitSec * 1000));
             } else {
                 console.warn(`[animationGenerator] Retry ${retries}: ${err.message}`);
             }

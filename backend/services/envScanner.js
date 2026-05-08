@@ -565,16 +565,11 @@ function isWindowsStoreStub(filePath) {
         try {
             const stat = fs.statSync(filePath);
             // App Execution Aliases are 0-byte files
-            if (stat.size === 0) return true;
-            // Very small files (< 1KB) in WindowsApps that aren't .dll/.sys are also suspicious
+            // Very small files (<1KB) in WindowsApps that aren't .dll/.sys are also suspicious
             // Real executables are at minimum several KB
-            if (stat.size < 1024 && /\.(exe)$/i.test(filePath)) return true;
-            return false;
+            return stat.size === 0 || (stat.size < 1024 && /\.(exe)$/i.test(filePath));
         } catch (statErr) {
             // EACCES / EPERM on stat in WindowsApps means it's a reparse-point stub
-            if (statErr.code === 'EACCES' || statErr.code === 'EPERM') {
-                return true;
-            }
             return true; // Any stat error on a WindowsApps path — treat as unusable
         }
     } catch {
@@ -991,7 +986,7 @@ async function isWindowsElevated(runtimeEnv) {
         return false;
     }
     const output = await runResolvedExecutable(net, ['session'], runtimeEnv.env, 4000);
-    runtimeEnv.isElevated = !!output;
+    runtimeEnv.isElevated = Boolean(output);
     return runtimeEnv.isElevated;
 }
 
@@ -1073,7 +1068,7 @@ async function getRuntimeInstallPlan(runtime, environments = {}, runtimeEnvArg =
             continue;
         }
 
-        const needsElevation = !!installer.requiresElevation && process.platform === 'win32' && !elevated;
+        const needsElevation = Boolean(installer.requiresElevation) && process.platform === 'win32' && !elevated;
         const command = needsElevation
             ? buildElevatedWindowsCommand(installer, runtimeEnv)
             : installer.command;
@@ -1145,7 +1140,7 @@ async function scanEnvironments() {
             results[runtime.id].installCmd = installPlan.ok ? installPlan.displayCommand : null;
             results[runtime.id].installManager = installPlan.ok ? installPlan.manager : null;
             results[runtime.id].installError = installPlan.ok ? null : installPlan.reason;
-            results[runtime.id].installRequiresElevation = !!installPlan.requiresElevation;
+            results[runtime.id].installRequiresElevation = Boolean(installPlan.requiresElevation);
         } catch (err) {
             console.error(`[envScanner] Error getting install plan for ${runtime.id}:`, err.message);
         }

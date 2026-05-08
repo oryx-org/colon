@@ -174,7 +174,7 @@ function ExplorerPanel({ onFileClick, onFileRenamed }: ExplorerPanelProps) {
 
     const collapseAll = () => {
         const collapse = (nodes: FileNode[]): FileNode[] =>
-            nodes.map(n => n.isDirectory ? { ...n, isOpen: false, children: n.children ? collapse(n.children) : undefined } : n);
+            nodes.map(n => (n.isDirectory ? { ...n, isOpen: false, children: n.children ? collapse(n.children) : undefined } : n));
         setTree(prev => collapse(prev));
     };
 
@@ -193,14 +193,12 @@ function ExplorerPanel({ onFileClick, onFileRenamed }: ExplorerPanelProps) {
         if (node.isOpen) {
             // Close it
             setTree(prev => updateTree(prev, node.path, n => ({ ...n, isOpen: false })));
-        } else {
+        } else if (!node.children) {
             // Open it — load children if not loaded
-            if (!node.children) {
-                const children = await loadDirectory(node.path);
-                setTree(prev => updateTree(prev, node.path, n => ({ ...n, isOpen: true, children })));
-            } else {
-                setTree(prev => updateTree(prev, node.path, n => ({ ...n, isOpen: true })));
-            }
+            const children = await loadDirectory(node.path);
+            setTree(prev => updateTree(prev, node.path, n => ({ ...n, isOpen: true, children })));
+        } else {
+            setTree(prev => updateTree(prev, node.path, n => ({ ...n, isOpen: true })));
         }
     };
 

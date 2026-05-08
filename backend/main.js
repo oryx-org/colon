@@ -249,7 +249,7 @@ ipcMain.handle('search:inFiles', async (event, query, options) => {
             const lines = content.split(/\r?\n/);
             const matches = [];
 
-            for (let i = 0; i < lines.length; i++) {
+            for (let i = 0; i < lines.length; i += 1) {
                 const line = lines[i];
                 let m;
                 pattern.lastIndex = 0;
@@ -262,12 +262,12 @@ ipcMain.handle('search:inFiles', async (event, query, options) => {
                         matchStart: m.index,
                         matchEnd: m.index + m[0].length,
                     });
-                    totalMatches++;
+                    totalMatches += 1;
                     if (totalMatches > 5000) break;
                     
                     // Prevent infinite loops on empty matches (e.g. `.*?` or `^`)
                     if (m[0].length === 0) {
-                        pattern.lastIndex++;
+                        pattern.lastIndex += 1;
                     }
                 }
                 if (totalMatches > 5000) break;
@@ -303,7 +303,7 @@ ipcMain.handle('search:replaceInFiles', async (event, query, replacement, option
         for (const filePath of files) {
             let content;
             try { content = await fs.promises.readFile(filePath, 'utf-8'); } catch { continue; }
-            const newContent = content.replace(pattern, () => { replacedCount++; return replacement; });
+            const newContent = content.replace(pattern, () => { replacedCount += 1; return replacement; });
             if (newContent !== content) {
                 await fs.promises.writeFile(filePath, newContent, 'utf-8');
             }
@@ -354,13 +354,13 @@ ipcMain.handle('env:getInstallCommand', async (event, runtimeId) => {
     try {
         const runtime = RUNTIMES.find((r) => r.id === runtimeId);
         if (!runtime) {
-            return { success: false, reason: 'Unknown runtime: ' + runtimeId };
+            return { success: false, reason: `Unknown runtime: ${runtimeId}` };
         }
         if (!cachedEnvironments) {
             cachedEnvironments = await scanEnvironments();
         }
-        if (cachedEnvironments[runtimeId] && cachedEnvironments[runtimeId].installed) {
-            return { success: false, alreadyInstalled: true, reason: runtime.name + ' is already installed.' };
+        if (cachedEnvironments[runtimeId]?.installed) {
+            return { success: false, alreadyInstalled: true, reason: `${runtime.name} is already installed.` };
         }
         const runtimeEnv = await createRuntimeEnv();
         const installPlan = await getRuntimeInstallPlan(runtime, cachedEnvironments, runtimeEnv);
@@ -373,7 +373,7 @@ ipcMain.handle('env:getInstallCommand', async (event, runtimeId) => {
             runtimeId,
             runtimeName: runtime.name,
             manager: installPlan.manager,
-            requiresElevation: !!installPlan.requiresElevation
+            requiresElevation: Boolean(installPlan.requiresElevation)
         };
     } catch (err) {
         return { success: false, reason: err.message };
@@ -474,12 +474,12 @@ ipcMain.handle('env:installRuntime', async (event, runtimeId) => {
             // increasing delays before giving up.
             let verified = false;
             const delays = [3000, 5000, 7000];
-            for (let attempt = 0; attempt < delays.length; attempt++) {
+            for (let attempt = 0; attempt < delays.length; attempt += 1) {
                 sendEvent('stdout', `\nVerifying installation (attempt ${attempt + 1}/${delays.length})...\n`);
                 await new Promise(resolve => setTimeout(resolve, delays[attempt]));
                 // Force a completely fresh scan (re-reads registry PATH)
                 cachedEnvironments = await scanEnvironments();
-                verified = !!cachedEnvironments[runtime.id]?.installed;
+                verified = Boolean(cachedEnvironments[runtime.id]?.installed);
                 if (verified) {
                     console.log(`[main.js] ${runtime.name} verified on attempt ${attempt + 1}`);
                     break;
@@ -832,6 +832,8 @@ function createWindow() {
 
 }
 
+
+
 // Window control — registered once at module level to avoid duplicate handlers on macOS
 ipcMain.on('window-control', (event, action) => {
     const win = BrowserWindow.fromWebContents(event.sender);
@@ -860,6 +862,9 @@ ipcMain.on('window-new', () => {
 
 app.whenReady().then(() => {
     createWindow();
+    return undefined;
+}).catch((err) => {
+    console.error('[main.js] Failed to create window:', err);
 });
 
 app.on('window-all-closed', () => {

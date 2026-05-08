@@ -127,7 +127,7 @@ function MenuBar({ onTerminalAction, onMenuAction, activeFileName }: MenuBarProp
                             {openMenu === name && (
                                 <div className="menu-dropdown">
                                     {menus[name].map((item, i) =>
-                                        item.separator ? (
+                                        (item.separator ? (
                                             <div key={i} className="menu-separator" />
                                         ) : (
                                             <div
@@ -138,7 +138,7 @@ function MenuBar({ onTerminalAction, onMenuAction, activeFileName }: MenuBarProp
                                                 <span>{item.label}</span>
                                                 {item.shortcut && <span className="menu-shortcut">{item.shortcut}</span>}
                                             </div>
-                                        )
+                                        ))
                                     )}
                                 </div>
                             )}

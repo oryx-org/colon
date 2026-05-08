@@ -17,17 +17,9 @@ The ML/AI module is responsible for:
 
 ```
 backend/services/
-├── llmClient.js           # Calls Gemini/GPT API
-└── scriptValidator.js     # AST-based security validation
-
-manim-service/
-├── templates/             # Pre-built Manim templates
-│   ├── sorting.py
-│   ├── recursion.py
-│   ├── array_ops.py
-│   └── ...
-├── validator.py           # Python version of validator
-└── requirements.txt       # manim, google-generativeai, openai
+├── llmService.js              # Calls Gemini/GPT/Groq/Anthropic API
+├── manimService.js            # Python syntax & security validation + local Manim execution
+└── animationGenerator.js      # Frame-based animation logic
 ```
 
 ---

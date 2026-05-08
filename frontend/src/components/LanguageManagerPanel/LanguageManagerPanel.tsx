@@ -75,6 +75,9 @@ export default function LanguageManagerPanel({ onRunInTerminal, onShowTerminal }
         if (electron?.animEngine?.check) {
             electron.animEngine.check().then((status: any) => {
                 setAnimEngineStatus(status);
+                return undefined;
+            }).catch((err: any) => {
+                console.error('Failed to check animation engine status', err);
             });
         }
         
@@ -110,7 +113,7 @@ export default function LanguageManagerPanel({ onRunInTerminal, onShowTerminal }
 
             if (!result?.success) {
                 // Show error inline — no command available
-                alert(result?.reason || 'No install command available for this runtime.');
+                console.error(result?.reason || 'No install command available for this runtime.');
                 return;
             }
 
@@ -121,7 +124,7 @@ export default function LanguageManagerPanel({ onRunInTerminal, onShowTerminal }
             // Mark this runtime as "sent to terminal" for UI feedback
             setSentToTerminal(prev => ({ ...prev, [runtimeId]: true }));
         } catch (e: any) {
-            alert(`Failed to get install command: ${e.message}`);
+            console.error(`Failed to get install command: ${e.message}`);
         }
     };
 
@@ -138,11 +141,11 @@ export default function LanguageManagerPanel({ onRunInTerminal, onShowTerminal }
                 setAnimEngineStatus(status);
             } else {
                 setAnimEngineInstallResult('failed');
-                setAnimEngineInstallLogs(prev => prev + '\n' + (result.error || 'Unknown error'));
+                setAnimEngineInstallLogs(prev => `${prev}\n${result.error || 'Unknown error'}`);
             }
         } catch (e: any) {
             setAnimEngineInstallResult('failed');
-            setAnimEngineInstallLogs(prev => prev + '\n' + e.message);
+            setAnimEngineInstallLogs(prev => `${prev}\n${e.message}`);
         } finally {
             setAnimEngineInstalling(false);
         }

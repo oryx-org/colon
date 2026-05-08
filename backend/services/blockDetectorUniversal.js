@@ -50,7 +50,7 @@ const LANGUAGE_PATTERNS = {
     c: {
         strategy: 'brace',
         patterns: [
-            { type: 'function', regex: /^(\s*)\w[\w\s\*]*\s+(\w+)\s*\([^;]*$/ },
+            { type: 'function', regex: /^(\s*)\w[\w\s*]*\s+(\w+)\s*\([^;]*$/ },
             { type: 'for_loop', regex: /^(\s*)for\s*\(/ },
             { type: 'while_loop', regex: /^(\s*)while\s*\(/ },
             { type: 'if_block', regex: /^(\s*)if\s*\(/ },
@@ -153,10 +153,10 @@ function getPatternsForLang(lang) {
 function findBraceEnd(lines, startIdx) {
     let depth = 0;
     let foundOpen = false;
-    for (let i = startIdx; i < lines.length; i++) {
+    for (let i = startIdx; i < lines.length; i += 1) {
         for (const ch of lines[i]) {
-            if (ch === '{') { depth++; foundOpen = true; }
-            if (ch === '}') { depth--; }
+            if (ch === '{') { depth += 1; foundOpen = true; }
+            if (ch === '}') { depth -= 1; }
             if (foundOpen && depth === 0) return i;
         }
     }
@@ -170,7 +170,7 @@ function findIndentEnd(lines, startIdx) {
     const startIndent = lines[startIdx].search(/\S/);
     if (startIndent < 0) return startIdx;
     let lastLine = startIdx;
-    for (let i = startIdx + 1; i < lines.length; i++) {
+    for (let i = startIdx + 1; i < lines.length; i += 1) {
         const line = lines[i];
         if (line.trim() === '') continue; // skip blank lines
         const indent = line.search(/\S/);
@@ -185,7 +185,7 @@ function findIndentEnd(lines, startIdx) {
  */
 function findKeywordEnd(lines, startIdx, endKeyword) {
     const startIndent = lines[startIdx].search(/\S/);
-    for (let i = startIdx + 1; i < lines.length; i++) {
+    for (let i = startIdx + 1; i < lines.length; i += 1) {
         const trimmed = lines[i].trim();
         const indent = lines[i].search(/\S/);
         if (trimmed === endKeyword && indent <= startIndent) return i;
@@ -219,17 +219,17 @@ function makeLabel(type, match, line) {
 function detectBlocks(code, language) {
     const langKey = language.toLowerCase();
     const config = getPatternsForLang(langKey);
-    if (!config || !config.patterns) return [];
+    if (!config?.patterns) return [];
 
     const lines = code.split('\n');
     const blocks = [];
 
-    for (let i = 0; i < lines.length; i++) {
+    for (let i = 0; i < lines.length; i += 1) {
         const line = lines[i];
         if (line.trim() === '' || line.trim().startsWith('//') || line.trim().startsWith('#')) continue;
 
         for (const pattern of config.patterns) {
-            const match = line.match(pattern.regex);
+            const match = pattern.regex.exec(line);
             if (!match) continue;
 
             let endLine;

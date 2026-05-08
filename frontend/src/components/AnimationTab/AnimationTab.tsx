@@ -77,7 +77,7 @@ function AnimationTab({
     const formatTime = (sec: number) => `${Math.floor(sec / 60)}:${(sec % 60).toString().padStart(2, '0')}`;
     
     // Estimates (optimized generation)
-    const manimEstimate = Math.max(25, Math.floor(activeFileLineCount * 1.0)); // ~1s per line
+    const manimEstimate = Math.max(25, Math.floor(Number(activeFileLineCount) * 1.0)); // ~1s per line
     const blockEstimate = 15; // ~15 seconds for block animation
 
     return (

@@ -4,8 +4,7 @@ import MenuBar from './components/MenuBar/MenuBar';
 import Sidebar from './components/Sidebar/Sidebar';
 import ExplorerPanel from './components/ExplorerPanel/ExplorerPanel';
 import RightSidebar from './components/RightSidebar/RightSidebar';
-import AnimationTab from './components/AnimationTab/AnimationTab';
-import { AnimationRecord } from './components/AnimationTab/AnimationTab';
+import AnimationTab, { AnimationRecord } from './components/AnimationTab/AnimationTab';
 import Workspace from './components/Workspace/Workspace';
 import TerminalPanel, { TerminalPanelRef } from './components/TerminalPanel/TerminalPanel';
 import StatusBar from './components/StatusBar/StatusBar';
@@ -120,7 +119,7 @@ function App() {
     const result = await api.getInstallCommand(runtime.id);
     if (!result?.success) {
       terminalRef.current?.sendCommandToTerminal(
-        `echo "⚠️ ${result?.reason || 'No install command available for ' + runtimeName}"`
+        `echo "⚠️ ${result?.reason || `No install command available for ${runtimeName}`}"`
       );
       return;
     }
@@ -147,19 +146,22 @@ function App() {
     if (api) {
       refreshEnvironments().then((envs) => {
         if (envs) console.log('[App] Environments scanned:', envs);
-      });
+        return undefined;
+      }).catch((err: any) => console.error('[App] Failed to scan environments:', err));
       // Check LLM status
       if (api.animation?.getLlmStatus) {
         api.animation.getLlmStatus().then((status: any) => {
           setLlmConfigured(status?.configured || false);
           console.log('[App] LLM status:', status);
-        });
+          return undefined;
+        }).catch((err: any) => console.error('[App] Failed to get LLM status:', err));
       }
       // Check animation engine status
       if (api.animEngine?.check) {
           api.animEngine.check().then((status: any) => {
               setAnimEngineInstalled(status?.installed || false);
-          });
+              return undefined;
+          }).catch((err: any) => console.error('[App] Failed to check anim engine:', err));
       }
     }
   }, [refreshEnvironments]);
@@ -171,7 +173,8 @@ function App() {
       if (api?.animEngine?.check) {
         api.animEngine.check().then((status: any) => {
             setAnimEngineInstalled(status?.installed || false);
-        });
+            return undefined;
+        }).catch((err: any) => console.error('[App] Failed to check anim engine:', err));
       }
     }
   }, [rightTab]);
@@ -193,6 +196,7 @@ function App() {
       } else {
         setAnimsByFile(prev => ({ ...prev, [activeFilePath]: [] }));
       }
+      return undefined;
     }).catch(() => {
       setAnimsByFile(prev => ({ ...prev, [activeFilePath]: [] }));
     });
@@ -273,6 +277,7 @@ function App() {
       if (result.success) {
         setManimVideosByFile(prev => ({ ...prev, [activeFilePath]: result.videos || [] }));
       }
+      return undefined;
     }).catch(() => {});
   }, [activeFilePath]);
 
@@ -398,10 +403,10 @@ function App() {
         setShowSettings(true);
         break;
       case 'toggleExplorer':
-        setLeftTab(prev => prev === 'folder' ? 'none' : 'folder');
+        setLeftTab(prev => (prev === 'folder' ? 'none' : 'folder'));
         break;
       case 'toggleSearch':
-        setLeftTab(prev => prev === 'search' ? 'none' : 'search');
+        setLeftTab(prev => (prev === 'search' ? 'none' : 'search'));
         break;
       case 'runCode':
         runActiveFile();
@@ -424,7 +429,7 @@ function App() {
         });
         break;
       case 'toggleSidebar':
-        setLeftTab(prev => prev === 'none' ? 'folder' : 'none');
+        setLeftTab(prev => (prev === 'none' ? 'folder' : 'none'));
         break;
       case 'startDebugging':
         setLeftTab('debug');
@@ -435,7 +440,7 @@ function App() {
       case 'showAbout':
       case 'showWelcome':
       case 'showDocs':
-        window.alert('Colon IDE v1.0\nBuilt for the Web & Desktop.');
+        console.info('Colon IDE v1.0 — Built for the Web & Desktop.');
         break;
     }
   };
@@ -536,7 +541,7 @@ function App() {
     if (settings?.formatOnSave) {
       window.dispatchEvent(new CustomEvent('editor-action', { detail: 'formatDocument' }));
       // Give the editor 50ms to apply formatting changes before dumping to disk
-      await new Promise(r => setTimeout(r, 50));
+      await new Promise<void>(r => setTimeout(r, 50));
     }
 
     const electron = (window as any).electronAPI;
@@ -562,7 +567,7 @@ function App() {
       const success = await electron.writeFile(file.path, file.content);
       if (success) {
         setOpenFiles(prev => prev.map(f =>
-          f.path === file.path ? { ...f, isDirty: false } : f
+          (f.path === file.path ? { ...f, isDirty: false } : f)
         ));
       }
     }
@@ -590,8 +595,8 @@ function App() {
       }
       // If a folder was renamed, update all children
       // Check both / and \ separators for cross-platform support
-      if (f.path.startsWith(oldPath + '/') || f.path.startsWith(oldPath + '\\')) {
-        const updatedPath = newPath + f.path.substring(oldPath.length);
+      if (f.path.startsWith(`${oldPath}/`) || f.path.startsWith(`${oldPath}\\`)) {
+        const updatedPath = `${newPath}${f.path.substring(oldPath.length)}`;
         return { ...f, path: updatedPath };
       }
       return f;
@@ -600,8 +605,8 @@ function App() {
     // Update active file path if needed
     if (activeFilePath === oldPath) {
       setActiveFilePath(newPath);
-    } else if (activeFilePath?.startsWith(oldPath + '/') || activeFilePath?.startsWith(oldPath + '\\')) {
-      setActiveFilePath(newPath + activeFilePath.substring(oldPath.length));
+    } else if (activeFilePath?.startsWith(`${oldPath}/`) || activeFilePath?.startsWith(`${oldPath}\\`)) {
+      setActiveFilePath(`${newPath}${activeFilePath.substring(oldPath.length)}`);
     }
   };
 
@@ -628,15 +633,15 @@ function App() {
         const file = activeFileRef.current;
         if (file) handleCloseFileRef.current(file.path);
       }
-      // Ctrl+F5 or F5 — run active file
-      else if (( (e.ctrlKey || e.metaKey) && e.key === 'F5' && !e.shiftKey ) || e.key === 'F5') {
-        e.preventDefault();
-        if (!isRunningRef.current) runActiveFile();
-      }
-      // Ctrl+Shift+F5 — stop
+      // Ctrl+Shift+F5 — stop (must check before F5-run to avoid shadowing)
       else if ((e.ctrlKey || e.metaKey) && e.key === 'F5' && e.shiftKey) {
         e.preventDefault();
         stopRunningCode();
+      }
+      // Ctrl+F5 or F5 — run active file
+      else if (e.key === 'F5' && !e.shiftKey) {
+        e.preventDefault();
+        if (!isRunningRef.current) runActiveFile();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -915,12 +920,12 @@ function App() {
         commands={[
           { id: '1', category: 'File', label: 'Save', shortcut: 'Ctrl+S', action: saveActiveFile },
           { id: '2', category: 'File', label: 'Close Workspace', action: () => setOpenFiles([]) },
-          { id: '3', category: 'View', label: 'Toggle Search', shortcut: 'Ctrl+Shift+F', action: () => setLeftTab(l => l === 'search' ? 'folder' : 'search') },
+          { id: '3', category: 'View', label: 'Toggle Search', shortcut: 'Ctrl+Shift+F', action: () => setLeftTab(l => (l === 'search' ? 'folder' : 'search')) },
           { id: '4', category: 'View', label: 'Toggle Terminal', action: toggleTerminal },
           { id: '8', category: 'Preferences', label: 'Open Settings', shortcut: 'Ctrl+,', action: () => setShowSettings(true) },
           { id: '5', category: 'Run', label: 'Run Code', shortcut: 'F5', action: runActiveFile },
           { id: '6', category: 'Run', label: 'Stop Running Code', action: stopRunningCode },
-          { id: '7', category: 'AI', label: 'Toggle Animation Tab', action: () => setRightTab(r => r === 'video' ? 'none' : 'video') }
+          { id: '7', category: 'AI', label: 'Toggle Animation Tab', action: () => setRightTab(r => (r === 'video' ? 'none' : 'video')) }
         ]}
       />
 
