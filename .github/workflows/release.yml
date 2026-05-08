@@ -6,12 +6,13 @@ on:
       - 'v*'
   workflow_dispatch:
 
-permissions:
-  contents: write
-  packages: read
+permissions: {}
 
 jobs:
   release:
+    permissions:
+      contents: write
+      packages: read
     strategy:
       fail-fast: false
       matrix:
