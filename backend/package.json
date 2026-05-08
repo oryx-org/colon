@@ -47,6 +47,7 @@
     "appId": "com.colon.ide",
     "productName": "Colon IDE",
     "asar": true,
+    "npmRebuild": false,
     "directories": {
       "output": "dist",
       "buildResources": "build"
