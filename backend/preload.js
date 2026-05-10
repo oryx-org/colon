@@ -51,6 +51,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // Code Engine
     getRunCommand: (filePath) => ipcRenderer.invoke('code:getRunCommand', filePath),
     lintCode: (filePath, content) => ipcRenderer.invoke('code:lint', { filePath, content }),
+    runCode: (filePath, runtimeId) => ipcRenderer.invoke('code:run', { filePath, runtimeId }),
+    killCode: (runId) => ipcRenderer.invoke('code:kill', runId),
+    onCodeOutput: (callback) => {
+        const listener = (event, payload) => callback(payload);
+        ipcRenderer.on('code:run:output', listener);
+        return () => ipcRenderer.removeListener('code:run:output', listener);
+    },
 
     // Search
     searchInFiles: (query, options) => ipcRenderer.invoke('search:inFiles', query, options),

@@ -343,7 +343,7 @@ Generate the animation JSON now.`;
 
     let rawResponse;
     let retries = 0;
-    const MAX_RETRIES = 2;
+    const MAX_RETRIES = 1;
 
     while (retries <= MAX_RETRIES) {
         try {

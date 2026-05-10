@@ -208,7 +208,7 @@ function AnimationTab({
                                     controls
                                     preload="metadata"
                                     className="manim-video-player"
-                                    src={`file://${video.videoPath}`}
+                                    src={`colon-media://media?path=${encodeURIComponent(video.videoPath)}`}
                                 >
                                     Your browser does not support video playback.
                                 </video>

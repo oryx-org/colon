@@ -2,7 +2,7 @@
   "name": "colon-backend",
   "version": "1.0.0",
   "main": "main.js",
-  "description": "Colon — AI-Powered Desktop IDE with Code Animation",
+  "description": "Colon is a local-first, AI-powered desktop IDE that transforms source code into step-by-step animated video explanations using Manim CE. It features automated environment detection, one-click runtime installation, integrated terminal, LSP-based editing, and a secure LLM-driven animation pipeline with AST-level script validation and content caching.",
   "repository": {
     "type": "git",
     "url": "https://github.com/oryx-org/colon.git"
