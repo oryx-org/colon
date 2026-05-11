@@ -1,7 +1,13 @@
 /**
  * LLM Service — Unified interface for OpenAI, Anthropic, Google Gemini, and Groq.
  *
- * Reads provider/key/model from environment:
+ * Production architecture:
+ *   Default provider is 'gemini', which routes through the Cloudflare Worker
+ *   proxy at PROXY_URL. The API key is stored server-side in the Worker —
+ *   the desktop app ships with ZERO secrets.
+ *
+ * To switch providers in production, update the Cloudflare Worker.
+ * For local development, override via backend/.env:
  *   LLM_PROVIDER = "openai" | "anthropic" | "gemini" | "groq"
  *   LLM_API_KEY  = "<your key>"
  *   LLM_MODEL    = optional model override
@@ -20,9 +26,9 @@ const DEFAULT_MODELS = {
  * Load LLM config from process.env (set by loadEnv in main.js).
  */
 function getConfig() {
-    const provider = (process.env.LLM_PROVIDER || 'openai').toLowerCase().trim();
+    const provider = (process.env.LLM_PROVIDER || 'gemini').toLowerCase().trim();
     const apiKey = (process.env.LLM_API_KEY || '').trim();
-    const model = (process.env.LLM_MODEL || '').trim() || DEFAULT_MODELS[provider] || DEFAULT_MODELS.openai;
+    const model = (process.env.LLM_MODEL || '').trim() || DEFAULT_MODELS[provider] || DEFAULT_MODELS.gemini;
     return { provider, apiKey, model };
 }
 
@@ -49,7 +55,7 @@ async function chatCompletion(systemPrompt, userPrompt, opts = {}) {
     const forceJson = opts.forceJson ?? false;
 
     if (!isConfigured()) {
-        throw new Error('LLM not configured. Set LLM_API_KEY in backend/.env');
+        throw new Error('LLM not configured. Add your API key to backend/.env or use the default Gemini proxy.');
     }
 
     switch (provider) {
