@@ -254,34 +254,45 @@ function ExplorerPanel({ onFileClick, onFileRenamed }: ExplorerPanelProps) {
             return;
         }
 
-        const api = electron();
-        if (!api) { setInlineInput(null); return; }
+        const currentInput = inlineInput;
+        const currentVal = inputValue.trim();
+        setInlineInput(null); // Clear UI immediately
 
-        const newPath = `${inlineInput.parentPath}${pathSep()}${inputValue.trim()}`;
+        const api = electron();
+        if (!api) return;
+
+        const newPath = `${currentInput.parentPath}${pathSep()}${currentVal}`;
         let success = false;
 
-        if (inlineInput.type === 'create') {
-            if (inlineInput.isDirectory) {
+        if (currentInput.type === 'create') {
+            if (currentInput.isDirectory) {
                 success = await api.createDirectory(newPath);
             } else {
                 success = await api.createFile(newPath);
             }
-            if (success && !inlineInput.isDirectory) {
+            if (success && !currentInput.isDirectory) {
                 // Auto-open the newly created file
-                onFileClick(newPath, inputValue.trim());
+                onFileClick(newPath, currentVal);
             }
-        } else if (inlineInput.type === 'rename' && inlineInput.renamePath) {
-            success = await api.rename(inlineInput.renamePath, newPath);
-            if (success) {
-                onFileRenamed?.(inlineInput.renamePath, newPath);
+        } else if (currentInput.type === 'rename' && currentInput.renamePath) {
+            // Prevent rename to same name
+            if (currentInput.renamePath === newPath) {
+                success = true; // No-op
+            } else {
+                success = await api.rename(currentInput.renamePath, newPath);
+                if (success) {
+                    onFileRenamed?.(currentInput.renamePath, newPath);
+                }
             }
         }
 
         if (success) await refreshTree();
-        setInlineInput(null);
     };
 
-    const cancelInlineInput = () => setInlineInput(null);
+    const cancelInlineInput = () => {
+        setInputValue(''); // Clear value so onBlur doesn't commit
+        setInlineInput(null);
+    };
 
     /* ─────────────────────────────────────────────
        CRUD: Delete
