@@ -3,7 +3,7 @@
  *
  * Extracted from App.tsx to reduce root component complexity.
  */
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef } from 'react';
 import type { OpenFile } from '../App';
 
 /** Map of file extensions to Monaco language IDs */

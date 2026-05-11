@@ -443,7 +443,7 @@ INSTRUCTIONS:
                 break;
             } catch (err) {
                 retries += 1;
-                if (retries > 2) throw err;
+                if (retries > 1) throw err;
 
                 // Auto-wait on rate limit
                 const isRateLimit = err.message && (
@@ -469,7 +469,7 @@ INSTRUCTIONS:
                     console.warn(`[manimService] LLM retry ${retries}: ${err.message}`);
                 }
 
-                if (retries >= 2 && err.message.includes('Quota exceeded')) {
+                if (retries > 1 && err.message.includes('Quota exceeded')) {
                     throw new Error("API Quota Exceeded. The free tier of the AI Service has a limit (e.g., 20 requests). Please wait for it to reset or switch to a different AI provider in settings.");
                 }
             }

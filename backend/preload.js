@@ -1,3 +1,20 @@
+/**
+ * Preload Script — Security Bridge
+ *
+ * This is the ONLY connection between the React renderer and the Node.js main process.
+ * It uses Electron's contextBridge to expose a safe, sandboxed API (`window.electronAPI`)
+ * to the frontend. The renderer has NO direct access to Node.js, the filesystem, or
+ * child processes — all system access must go through the channels defined here.
+ *
+ * Key patterns:
+ * - `ipcRenderer.invoke()` — request/response (renderer awaits return value)
+ * - `ipcRenderer.send()` — fire-and-forget events (e.g. terminal input)
+ * - `ipcRenderer.on()` — subscribe to main→renderer events (e.g. terminal output)
+ * - Event listeners return cleanup functions to prevent memory leaks
+ *
+ * @module preload
+ * @see {@link ../ipc/} for the corresponding main-process handlers
+ */
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -92,7 +109,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
         check: () => ipcRenderer.invoke('animEngine:check'),
         install: () => ipcRenderer.invoke('animEngine:install'),
         onInstallProgress: (callback) => {
-            ipcRenderer.on('animEngine:install:progress', (event, msg) => callback(msg));
+            const listener = (event, msg) => callback(msg);
+            ipcRenderer.on('animEngine:install:progress', listener);
+            return () => ipcRenderer.removeListener('animEngine:install:progress', listener);
         },
         removeInstallListeners: () => {
             ipcRenderer.removeAllListeners('animEngine:install:progress');

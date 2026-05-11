@@ -1,10 +1,10 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Split from 'react-split';
 import MenuBar from './components/MenuBar/MenuBar';
 import Sidebar from './components/Sidebar/Sidebar';
 import ExplorerPanel from './components/ExplorerPanel/ExplorerPanel';
 import RightSidebar from './components/RightSidebar/RightSidebar';
-import AnimationTab, { AnimationRecord } from './components/AnimationTab/AnimationTab';
+import AnimationTab from './components/AnimationTab/AnimationTab';
 import Workspace from './components/Workspace/Workspace';
 import TerminalPanel, { TerminalPanelRef } from './components/TerminalPanel/TerminalPanel';
 import StatusBar from './components/StatusBar/StatusBar';

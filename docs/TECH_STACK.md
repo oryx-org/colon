@@ -1,4 +1,4 @@
-# 🛠️ Tech Stack & Tools — Colon Desktop
+# 🛠️ Tech Stack & Tools — Colon IDE
 
 ---
 
@@ -10,24 +10,22 @@
 |---|---|---|
 | **Electron** | 39.x | Desktop app framework (Chromium + Node.js) |
 | **electron-builder** | 26.x | Builds .exe / .dmg / .AppImage / .deb installers |
-| **electron-store** | 10.x | Persistent local storage (user preferences, settings) |
 
 ### Frontend (Renderer Process)
 
 | Technology | Version | Purpose |
 |---|---|---|
 | **React** | 19.x | UI component framework |
-| **Vite** | 7.x | Build tool, HMR for development |
+| **Vite** | 7.x | Build tool with HMR for development |
 | **TypeScript** | 5.x | Type-safe frontend development |
 | **Monaco Editor** | `@monaco-editor/react` 4.x | VS Code-grade code editor |
 | **xterm.js** | `@xterm/xterm` 6.x | Terminal emulator in browser |
-| **xterm-addon-fit** | `@xterm/addon-fit` 0.11.x | Auto-resize terminal |
+| **xterm-addon-fit** | `@xterm/addon-fit` 0.11.x | Auto-resize terminal to panel |
 | **xterm-addon-webgl** | `@xterm/addon-webgl` 0.19.x | GPU-accelerated terminal rendering |
-| **react-player** | 3.x | MP4 video playback |
-| **react-router-dom** | 7.x | Client-side routing |
+| **react-player** | 3.x | MP4 video playback for animations |
+| **react-split** | 2.x | Resizable split panels |
 | **react-hot-toast** | 2.x | Toast notifications |
 | **react-icons** | 5.x | Icon library |
-| **react-split** | 2.x | Resizable split panels |
 | **monaco-languageclient** | 10.x | LSP integration for Monaco |
 | **vscode-ws-jsonrpc** | 3.x | WebSocket JSON-RPC for LSP |
 
@@ -35,11 +33,8 @@
 
 | Technology | Version | Purpose |
 |---|---|---|
-| **node-pty** | 1.x | Real terminal (bash/powershell) integration |
-| **chokidar** | 5.x | File system watcher (for file explorer live updates) |
-| **axios** | 1.x | HTTP client for compiler downloads |
-| **extract-zip** | 2.x | Extract compiler downloads |
-| **dotenv** | 17.x | Environment variable loading |
+| **node-pty** | 1.x | Real terminal (bash/powershell) via native PTY |
+| **dotenv** | 17.x | Environment variable loading (.env) |
 | **ws** | 8.x | WebSocket server for LSP bridge |
 | **pyright** | 1.x | Python language server (bundled) |
 | **typescript-language-server** | 5.x | JS/TS language server (bundled) |
@@ -110,7 +105,7 @@ The app uses a `.env` file in the backend directory for LLM configuration:
 # backend/.env
 LLM_PROVIDER=gemini
 LLM_API_KEY=your-api-key-here
-LLM_MODEL=gemini-flash-latest
+LLM_MODEL=gemini-2.5-flash-preview-04-17
 
 # Production: route through Cloudflare Worker proxy
 PROXY_URL=https://colon-llm-proxy.oryx-org.workers.dev

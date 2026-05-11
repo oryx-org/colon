@@ -5,7 +5,7 @@
  * Handles: animation generation, loading, deletion, clearing,
  * Manim video generation, cancellation, deletion, engine status.
  */
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { AnimationRecord } from '../components/AnimationTab/AnimationTab';
 import type { OpenFile } from '../App';
 

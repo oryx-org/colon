@@ -25,30 +25,18 @@ Beginners often struggle to understand how code actually executes — variables 
 ### Core Documentation
 
 | Document | Description |
-|---|---|
+|----------|-------------|
 | [Architecture Overview](./ARCHITECTURE.md) | System design, IPC map, data flow, security model |
 | [Tech Stack & Tools](./TECH_STACK.md) | All technologies, packages, and tools used |
 | [Optimization Guide](./OPTIMIZATION.md) | Reducing render time, caching, performance tuning |
 
-### Module-Specific README Files
+### Module-Specific Documentation
 
-| Readme | Description |
-|---|---|
-| [Electron (Main Process) README](./ELECTRON_README.md) | IPC handlers, service layer, process management |
-| [Frontend (Renderer) README](./FRONTEND_README.md) | React+TypeScript UI components, layout, state |
-| [ML/AI README](./ML_README.md) | LLM integration, prompt engineering, Manim script generation, security validation |
-
-### Phase-wise Implementation Guide
-
-| Phase | Document | Focus |
-|---|---|---|
-| **Phase 1** | [Project Setup](./phase-1-project-setup.md) | Electron + React + Vite scaffolding |
-| **Phase 2** | [UI Shell & Layout](./phase-2-ui-shell.md) | File explorer, editor, animation panel, terminal |
-| **Phase 3** | [Language Manager](./phase-3-language-manager.md) | Runtime detection and one-click installation |
-| **Phase 4** | [Code Execution Engine](./phase-4-code-execution.md) | Run user code with local runtimes |
-| **Phase 5** | [Manim Integration](./phase-5-manim-integration.md) | LLM + local Manim rendering pipeline |
-| **Phase 6** | [LLM & AI Integration](./phase-6-llm-integration.md) | Multi-provider LLM, prompt engineering |
-| **Phase 7** | [Packaging & Distribution](./phase-7-packaging.md) | Electron Builder, installers, CI/CD |
+| Document | Description |
+|----------|-------------|
+| [Electron (Main Process)](./ELECTRON_README.md) | IPC handlers, service layer, process management |
+| [Frontend (Renderer)](./FRONTEND_README.md) | React+TypeScript UI components, layout, state |
+| [ML/AI Pipeline](./ML_README.md) | LLM integration, prompt engineering, Manim script generation, security validation |
 
 ---
 

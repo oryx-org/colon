@@ -9,6 +9,9 @@ node_modules/
 /out/
 *.egg-info/
 .vite/
+/frontend/dist/
+/frontend/vite.config.js
+/frontend/vite.config.d.ts
 
 # Python / Manim Service
 venv/
@@ -56,6 +59,7 @@ Thumbs.db
 /backend/dist/
 /backend/build/
 /backend/scratch/
+/backend/frontend-dist/
 
 # testing folder
 Basic/

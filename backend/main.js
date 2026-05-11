@@ -21,7 +21,7 @@ const os = require('os');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 // Services
-const { startLspServer, getLspToken } = require('./services/lspServer');
+const { startLspServer, stopLspServer, getLspToken } = require('./services/lspServer');
 
 // IPC Handler Modules
 const { registerFileSystemHandlers } = require('./ipc/fileSystemHandlers');
@@ -116,8 +116,26 @@ function createWindow() {
     if (isDev) {
         mainWindow.loadURL('http://localhost:5173');
     } else {
-        mainWindow.loadFile(path.join(__dirname, '..', 'frontend', 'dist', 'index.html'));
+        const prodPath = path.join(__dirname, 'frontend-dist', 'index.html');
+        console.log('[main.js] Loading production frontend from:', prodPath);
+        console.log('[main.js] File exists:', fs.existsSync(prodPath));
+        mainWindow.loadFile(prodPath);
     }
+
+    // ── Production Error Diagnostics ──
+    mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
+        console.error(`[main.js] Page failed to load: ${errorDescription} (code: ${errorCode}, url: ${validatedURL})`);
+    });
+
+    mainWindow.webContents.on('render-process-gone', (_event, details) => {
+        console.error('[main.js] Render process gone:', details.reason);
+    });
+
+    mainWindow.webContents.on('console-message', (_event, level, message) => {
+        if (level >= 2) { // warnings and errors only
+            console.warn(`[renderer] ${message}`);
+        }
+    });
 
     mainWindow.once('ready-to-show', () => {
         mainWindow.show();
@@ -165,6 +183,7 @@ app.on('window-all-closed', () => {
 
 app.on('will-quit', () => {
     killAllPtyProcesses();
+    stopLspServer();
 });
 
 app.on('activate', () => {
