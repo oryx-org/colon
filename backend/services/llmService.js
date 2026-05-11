@@ -18,7 +18,7 @@ const https = require('https');
 const DEFAULT_MODELS = {
     openai: 'gpt-4o',
     anthropic: 'claude-sonnet-4-20250514',
-    gemini: 'gemini-2.5-pro',
+    gemini: 'gemini-flash-latest',
     groq: 'llama-3.3-70b-versatile',
 };
 
@@ -215,7 +215,7 @@ async function callGemini(apiKey, model, system, user, temperature, maxTokens) {
     // We now route through our secure Cloudflare Worker proxy instead of hitting Google directly.
     // This prevents shipping the raw Gemini API key in the Electron desktop app.
     const proxyUrl = process.env.PROXY_URL || 'https://colon-llm-proxy.oryx-org.workers.dev';
-    
+
     const body = JSON.stringify({
         model: model,
         contents: [{ role: 'user', parts: [{ text: user }] }],
