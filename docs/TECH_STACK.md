@@ -8,61 +8,71 @@
 
 | Technology | Version | Purpose |
 |---|---|---|
-| **Electron** | 33.x | Desktop app framework (Chromium + Node.js) |
-| **electron-builder** | 25.x | Builds .exe / .dmg / .AppImage / .deb installers |
+| **Electron** | 39.x | Desktop app framework (Chromium + Node.js) |
+| **electron-builder** | 26.x | Builds .exe / .dmg / .AppImage / .deb installers |
 | **electron-store** | 10.x | Persistent local storage (user preferences, settings) |
-| **electron-updater** | 6.x | Auto-update mechanism |
 
 ### Frontend (Renderer Process)
 
 | Technology | Version | Purpose |
 |---|---|---|
-| **React** | 18.x | UI component framework |
-| **Vite** | 5.x | Build tool, HMR for development |
-| **Monaco Editor** | `@monaco-editor/react` | VS Code-grade code editor |
-| **xterm.js** | 5.x | Terminal emulator in browser |
-| **xterm-addon-fit** | 0.10.x | Auto-resize terminal |
-| **react-player** | 2.x | MP4 video playback |
-| **react-router** | 6.x | Page navigation (IDE / Settings) |
+| **React** | 19.x | UI component framework |
+| **Vite** | 7.x | Build tool, HMR for development |
+| **TypeScript** | 5.x | Type-safe frontend development |
+| **Monaco Editor** | `@monaco-editor/react` 4.x | VS Code-grade code editor |
+| **xterm.js** | `@xterm/xterm` 6.x | Terminal emulator in browser |
+| **xterm-addon-fit** | `@xterm/addon-fit` 0.11.x | Auto-resize terminal |
+| **xterm-addon-webgl** | `@xterm/addon-webgl` 0.19.x | GPU-accelerated terminal rendering |
+| **react-player** | 3.x | MP4 video playback |
+| **react-router-dom** | 7.x | Client-side routing |
 | **react-hot-toast** | 2.x | Toast notifications |
 | **react-icons** | 5.x | Icon library |
 | **react-split** | 2.x | Resizable split panels |
+| **monaco-languageclient** | 10.x | LSP integration for Monaco |
+| **vscode-ws-jsonrpc** | 3.x | WebSocket JSON-RPC for LSP |
 
 ### Main Process (Node.js Services)
 
 | Technology | Version | Purpose |
 |---|---|---|
 | **node-pty** | 1.x | Real terminal (bash/powershell) integration |
-| **chokidar** | 4.x | File system watcher (for file explorer live updates) |
-| **node-fetch** / **axios** | — | HTTP client for LLM API calls and compiler downloads |
-| **archiver** / **extract-zip** | — | Zip/extract compiler downloads |
-| **crypto** (built-in) | — | Code hashing for caching |
+| **chokidar** | 5.x | File system watcher (for file explorer live updates) |
+| **axios** | 1.x | HTTP client for compiler downloads |
+| **extract-zip** | 2.x | Extract compiler downloads |
+| **dotenv** | 17.x | Environment variable loading |
+| **ws** | 8.x | WebSocket server for LSP bridge |
+| **pyright** | 1.x | Python language server (bundled) |
+| **typescript-language-server** | 5.x | JS/TS language server (bundled) |
+| **crypto** (built-in) | — | Code hashing for caching, LSP token generation |
 
 ### AI / LLM
 
 | Technology | Purpose |
 |---|---|
-| **Google Gemini API** (`@google/generative-ai`) | Code analysis + Manim script generation |
-| **OpenAI SDK** (fallback) | Alternative LLM provider |
+| **Cloudflare Worker Proxy** | Server-side API key protection for Gemini |
+| **Google Gemini API** (via proxy) | Code analysis + Manim script generation |
+| **Groq API** (alternative) | Fast inference with Llama models |
+| **Anthropic API** (alternative) | Claude-based code analysis |
 
 ### Manim (Animation Engine)
 
 | Technology | Version | Purpose |
 |---|---|---|
-| **Python** | 3.12+ | Required runtime for Manim |
-| **Manim Community** | 0.20.x | Generates MP4 animation videos |
-| **FFmpeg** | 6.x | Video encoding (Manim dependency) |
+| **Python** | 3.8+ | Required runtime for Manim |
+| **Manim Community** | Latest | Generates MP4 animation videos |
+| **FFmpeg** | Latest | Video encoding (Manim dependency) |
 | **Cairo + Pango** | — | 2D graphics rendering (Manim dependency) |
 
-### Development Tools
+### Development & Testing Tools
 
 | Tool | Purpose |
 |---|---|
-| **VS Code** | IDE for development |
+| **ESLint** | Code linting (frontend) |
+| **Node.js Test Runner** | Unit testing (backend — `node --test`) |
+| **concurrently** | Run Vite + Electron simultaneously |
+| **wait-on** | Wait for Vite dev server before launching Electron |
 | **Git** | Version control |
-| **ESLint + Prettier** | Code linting and formatting |
-| **Jest** | Unit testing |
-| **Spectron / Playwright** | Electron E2E testing |
+| **GitHub Actions** | CI/CD — lint, test, build installers |
 
 ---
 
@@ -71,34 +81,21 @@
 ### Desktop (Electron)
 
 ```bash
-mkdir backend && cd backend
-npm init -y
-npm install electron electron-store
-npm install -D electron-builder electron-devtools-installer
+cd backend
+npm install
 ```
 
 ### Frontend (React)
 
 ```bash
 cd frontend
-# Already initialized with Vite
-npm install @monaco-editor/react react-player react-router-dom
-npm install react-hot-toast react-icons react-split
-npm install xterm xterm-addon-fit
+npm install
 ```
 
-### Main Process Dependencies
+### Manim (Python — installed via Animation Engine in-app)
 
 ```bash
-cd backend
-npm install node-pty chokidar extract-zip axios
-npm install @google/generative-ai
-```
-
-### Manim (Python — installed via Language Manager)
-
-```bash
-# These are installed BY the app, not during development
+# These are installed BY the app via one-click setup, not during development
 pip install manim
 # System deps (Linux): sudo apt install libcairo2-dev libpango1.0-dev ffmpeg
 ```
@@ -107,55 +104,20 @@ pip install manim
 
 ## Environment / Config
 
-Since this is a desktop app, there's no `.env` file on a server. Instead, settings are stored locally:
+The app uses a `.env` file in the backend directory for LLM configuration:
 
-```json
-// ~/.config/Colon/config.json (managed by electron-store)
-{
-  "llm": {
-    "provider": "gemini",
-    "apiKey": "stored-in-os-keychain"
-  },
-  "editor": {
-    "fontSize": 14,
-    "theme": "vs-dark",
-    "wordWrap": true
-  },
-  "rendering": {
-    "quality": "low",
-    "maxTimeout": 120
-  },
-  "recentProjects": [
-    "/home/user/projects/sorting",
-    "/home/user/projects/trees"
-  ]
-}
+```env
+# backend/.env
+LLM_PROVIDER=gemini
+LLM_API_KEY=your-api-key-here
+LLM_MODEL=gemini-flash-latest
+
+# Production: route through Cloudflare Worker proxy
+PROXY_URL=https://colon-llm-proxy.oryx-org.workers.dev
 ```
 
-### Compiler Config
+User preferences (font size, theme, word wrap) are stored in localStorage via the Settings Modal in the frontend.
 
-```json
-// ~/.Colon/compilers/compilers.json
-{
-  "python": {
-    "installed": true,
-    "version": "3.12.3",
-    "path": "/home/user/.Colon/compilers/python/bin/python3"
-  },
-  "cpp": {
-    "installed": true,
-    "version": "13.2",
-    "path": "/home/user/.Colon/compilers/cpp/bin/g++"
-  },
-  "java": {
-    "installed": false,
-    "version": null,
-    "path": null
-  },
-  "node": {
-    "installed": false,
-    "version": null,
-    "path": null
-  }
-}
-```
+### Runtime Detection
+
+The `envScanner.js` service auto-detects installed runtimes by scanning the system PATH. No manual configuration files needed — detection is automatic on every IDE launch.

@@ -7,11 +7,11 @@
 | Factor | Web App | Desktop App (Ours) |
 |---|---|---|
 | Manim rendering | Server-side → $$$, slow | Local → FREE, fast |
-| Server needed | Yes (backend + workers) | No (except LLM API) |
-| Server cost | $150+/month | $0 |
+| Server needed | Yes (backend + workers) | No (only LLM proxy) |
+| Server cost | $150+/month | ~$0 (Cloudflare Workers free tier) |
 | Offline support | ❌ | ✅ (except LLM calls) |
 | File system access | ❌ | ✅ Full filesystem |
-| Terminal | ❌ | ✅ Real terminal |
+| Terminal | ❌ | ✅ Real PTY terminal |
 
 ---
 
@@ -21,19 +21,18 @@
 
 | Manim Flag | Resolution | FPS | Render Time (simple) |
 |---|---|---|---|
-| `-ql` | 480p | 15 | ~3-5 sec ← **Use this** |
+| `-ql` | 480p | 15 | ~3-5 sec ← **Default** |
 | `-qm` | 720p | 30 | ~15 sec |
 | `-qh` | 1080p | 60 | ~45 sec |
 
-Start with `-ql` for instant feedback. Offer "HD Render" button for `-qm`.
+The app uses `-ql` (low quality) by default for instant feedback.
 
 ### Constrain Animation Complexity
 
-In the LLM prompt:
-- Maximum 50 animation steps
-- Maximum 8 elements in arrays
+In the LLM system prompt:
 - Use `run_time=0.3` for simple transitions
-- Use `self.wait(1.5)` instead of `self.wait(3.0)`
+- Minimum 5 `self.play()` calls for meaningful content
+- Font size restricted to 18-32 range
 
 ---
 
@@ -42,40 +41,27 @@ In the LLM prompt:
 Desktop caching is **even better** than web caching — files persist on disk:
 
 ```
-~/.Colon/cache/
-├── a1b2c3.mp4    ← SHA-256(code + language)
-├── d4e5f6.mp4
-└── ...
+<workspace>/.colon/manim/<hash>/
+├── animation.py        ← Generated Manim script
+└── media/videos/       ← Rendered MP4 output
 
 Policy:
-- Max cache size: 2 GB
-- TTL: 30 days
+- Cache key: SHA-256(code + language)
 - Same code = instant playback (0 sec)
+- Cache persists in workspace .colon/ directory
 ```
-
-### Expected Cache Hit Rate
-
-| Scenario | Rate |
-|---|---|
-| User re-runs same code | 100% |
-| Similar code (variable renames) | ~15% (with normalization) |
-| Common patterns (hello world, for loops) | ~30% |
-| **Effective combined** | **~50%+** |
 
 ---
 
 ## 3. Perceived Speed Optimization
 
-While Manim renders (5-15 sec), show the user something useful:
+While Manim renders (5-15 sec), the UI shows progress:
 
 ```
-0 sec:     "Analyzing code..."          ← User sees activity
-1-2 sec:   LLM returns text explanation ← SHOW THIS IMMEDIATELY
-           User starts reading explanation
-5-10 sec:  Manim finishes rendering     ← User done reading, video auto-plays
+0 sec:     "Generating animation..."    ← User sees spinner
+1-2 sec:   LLM returns Manim script    ← Script validated
+5-10 sec:  Manim finishes rendering    ← Video auto-plays in AnimationTab
 ```
-
-**Result**: User never feels like they're waiting because they're reading the explanation.
 
 ---
 
@@ -83,10 +69,10 @@ While Manim renders (5-15 sec), show the user something useful:
 
 | Strategy | Impact |
 |---|---|
-| Don't bundle compilers (Language Manager downloads on demand) | -400MB saved |
-| Exclude test files from node_modules | -10MB |
-| Use `asar` archive | Faster load |
-| **Target app download** | **~70-80MB** |
+| Don't bundle runtimes — detect from PATH + one-click install | No binary bloat |
+| Exclude test files via electron-builder `files` config | Smaller package |
+| Use `asar` archive (default in electron-builder) | Faster load time |
+| Monaco editor lazy-loaded language modules | Reduced initial JS |
 
 ---
 
@@ -95,6 +81,6 @@ While Manim renders (5-15 sec), show the user something useful:
 | Strategy | Savings |
 |---|---|
 | Cache → same code = skip LLM call | ~50% calls eliminated |
-| Template matching → common patterns = no LLM needed | ~20% more eliminated |
-| Use Gemini Flash (cheap) instead of Pro | ~80% cheaper per call |
-| Short prompt (600 tokens vs 1200) | ~50% input cost reduction |
+| Use Gemini Flash (cheapest) as default | ~80% cheaper vs Pro |
+| Cloudflare Workers free tier (100k req/day) | $0 hosting cost |
+| Proxy keeps API key server-side | No key exposure risk |

@@ -1,21 +1,22 @@
 # 📘 Colon — Project Documentation
 
 > **AI-Powered Desktop IDE with Code Animation**
-> A desktop application where users write code, run it locally, and instantly see AI-generated animated videos explaining how their code works — step by step.
+> A desktop application where users write code, run it locally, and generate AI-powered animated video explanations of how their code works — step by step — using Manim Community Edition.
 
 ---
 
 ## 🎯 Project Vision
 
-Beginners often struggle to understand how code actually executes — variables changing, loops iterating, recursion unfolding — because static textbooks and text-heavy platforms fail to capture the dynamic nature of programming. **Colon** solves this as an AI-powered desktop application where users write code (even partial snippets) in a full IDE and instantly receive AI-generated animated videos that visually explain each step of execution using color-coded elements, variable trackers, and on-screen explanations. Every time the user modifies their code and clicks "Analyze," a fresh animation is generated locally, allowing learners to see the impact of each change in real time.
+Beginners often struggle to understand how code actually executes — variables changing, loops iterating, recursion unfolding — because static textbooks and text-heavy platforms fail to capture the dynamic nature of programming. **Colon** solves this as an AI-powered desktop IDE where users write code in a full-featured editor (Monaco), run it locally via an integrated terminal, and generate animated video explanations powered by LLM-generated Manim scripts. The animations visually trace each step of execution using color-coded elements, variable trackers, and on-screen explanations.
 
 ### Key Differentiators
 
-- **Desktop App** — Full IDE experience with file explorer, code editor, animation player, and integrated terminal
-- **Local Execution** — Compilers run locally on the user's machine (no server needed)
-- **Built-in Language Manager** — One-click download & install of supported languages (Python, C++, Java, Node.js)
-- **Local Manim Rendering** — Animations are generated on the user's machine — fast and free
-- **Code-to-Animation** — Write code, click Analyze, watch it come to life as an animated video
+- **Desktop IDE** — Full IDE experience with file explorer, Monaco code editor, animation panel, integrated terminal, command palette, and settings
+- **Local Execution** — Runtimes detected from system PATH and executed locally (Python, Node.js, C/C++, Java, Go, Rust, TypeScript)
+- **One-Click Runtime Install** — Detect missing runtimes and install them directly from the IDE via the Language Manager panel
+- **AI Animation Pipeline** — Write code → LLM generates Manim script → validated for security → rendered locally as MP4
+- **Secure by Design** — Context isolation, filesystem jail, AST-level script validation, API key protection via Cloudflare Worker proxy
+- **LSP Integration** — Language Server Protocol for intelligent code assistance (Python via Pyright, JS/TS via typescript-language-server)
 
 ---
 
@@ -25,40 +26,29 @@ Beginners often struggle to understand how code actually executes — variables 
 
 | Document | Description |
 |---|---|
-| [Architecture Overview](./ARCHITECTURE.md) | System design, Electron architecture, data flow |
+| [Architecture Overview](./ARCHITECTURE.md) | System design, IPC map, data flow, security model |
 | [Tech Stack & Tools](./TECH_STACK.md) | All technologies, packages, and tools used |
-| [Optimization Guide](./OPTIMIZATION.md) | Reducing render time, app size, and performance tuning |
-
-### Phase-wise Implementation Guide
-
-| Phase | Document | Timeline | Focus |
-|---|---|---|---|
-| **Phase 1** | [Project Setup](./phase-1-project-setup.md) | Week 1–2 | Electron + React + Vite scaffolding |
-| **Phase 2** | [UI Shell & Layout](./phase-2-ui-shell.md) | Week 2–4 | File explorer, editor, animation panel, terminal |
-| **Phase 3** | [Language Manager](./phase-3-language-manager.md) | Week 3–5 | Download, install, manage compilers locally |
-| **Phase 4** | [Code Execution Engine](./phase-4-code-execution.md) | Week 4–6 | Run user code with local compilers |
-| **Phase 5** | [Manim Integration](./phase-5-manim-integration.md) | Week 5–7 | LLM + local Manim rendering pipeline |
-| **Phase 6** | [LLM & AI Integration](./phase-6-llm-integration.md) | Week 6–8 | Prompt engineering, code analysis |
-| **Phase 7** | [Packaging & Distribution](./phase-7-packaging.md) | Week 7–9 | Electron Builder, installers, auto-update |
+| [Optimization Guide](./OPTIMIZATION.md) | Reducing render time, caching, performance tuning |
 
 ### Module-Specific README Files
 
 | Readme | Description |
 |---|---|
-| [Electron (Main Process) README](./ELECTRON_README.md) | IPC handlers, file system, process management |
-| [Frontend (Renderer) README](./FRONTEND_README.md) | React UI components, layout, state |
-| [ML/AI README](./ML_README.md) | LLM integration, prompt engineering, Manim script generation |
+| [Electron (Main Process) README](./ELECTRON_README.md) | IPC handlers, service layer, process management |
+| [Frontend (Renderer) README](./FRONTEND_README.md) | React+TypeScript UI components, layout, state |
+| [ML/AI README](./ML_README.md) | LLM integration, prompt engineering, Manim script generation, security validation |
 
----
+### Phase-wise Implementation Guide
 
-## 👥 Team of 6 — Role Assignments
-
-| Role | Members | Responsibilities |
+| Phase | Document | Focus |
 |---|---|---|
-| **UI / Frontend** | 2 members | React components, layout, dark theme, animations |
-| **Electron / System** | 2 members | Main process, file system, terminal, language manager, code runner |
-| **ML / Manim** | 1 member | LLM prompts, Manim templates, script validation |
-| **DevOps / Packaging** | 1 member | Electron builder, installers, CI/CD, testing |
+| **Phase 1** | [Project Setup](./phase-1-project-setup.md) | Electron + React + Vite scaffolding |
+| **Phase 2** | [UI Shell & Layout](./phase-2-ui-shell.md) | File explorer, editor, animation panel, terminal |
+| **Phase 3** | [Language Manager](./phase-3-language-manager.md) | Runtime detection and one-click installation |
+| **Phase 4** | [Code Execution Engine](./phase-4-code-execution.md) | Run user code with local runtimes |
+| **Phase 5** | [Manim Integration](./phase-5-manim-integration.md) | LLM + local Manim rendering pipeline |
+| **Phase 6** | [LLM & AI Integration](./phase-6-llm-integration.md) | Multi-provider LLM, prompt engineering |
+| **Phase 7** | [Packaging & Distribution](./phase-7-packaging.md) | Electron Builder, installers, CI/CD |
 
 ---
 
@@ -66,23 +56,25 @@ Beginners often struggle to understand how code actually executes — variables 
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│  🎬 Colon    File  Edit  View  Help               ─  □  ✕  │
-├───────────┬───────────────────────────┬──────────────────────────┤
-│           │                           │                          │
-│  📁 FILES  │   📝 EDITOR (Monaco)      │   🎬 ANIMATION PLAYER    │
-│           │                           │                          │
-│  ▾ project│                           │   ┌──────────────────┐  │
-│    ▸ src/ │  (User writes code here)  │   │   MP4 Video      │  │
-│    main.py│                           │   │   Player         │  │
-│    sort.js│                           │   └──────────────────┘  │
-│           │                           │                          │
-│           │        [▶ Run] [🔍 Analyze]│   📘 Explanation Panel   │
-│           │                           │   🔍 Current Step Panel  │
-├───────────┴───────────────────────────┴──────────────────────────┤
-│  TERMINAL / OUTPUT CONSOLE                                      │
-│  ~/project $ python3 main.py                                    │
-│  Hello World!                                                   │
-└──────────────────────────────────────────────────────────────────┘
+│  🎬 Colon IDE    File  Edit  View  Run  Terminal  Help  ─ □ ✕  │
+├──┬────────────┬───────────────────────────┬───────────────────┬──┤
+│  │            │                           │                   │  │
+│  │  📁 FILES   │   📝 EDITOR (Monaco)      │ 🎬 ANIMATION TAB  │  │
+│S │            │                           │                   │R │
+│I │  ▾ project │                           │ ┌───────────────┐ │I │
+│D │    ▸ src/  │  (Code editor with LSP)   │ │  MP4 Video    │ │G │
+│E │    main.py │                           │ │  Player       │ │H │
+│B │    sort.js │                           │ └───────────────┘ │T │
+│A │            │                           │                   │  │
+│R │            │      [▶ Run] [F5]         │  Block Animations │B │
+│  │            │                           │  LLM Status       │A │
+│  ├────────────┴───────────────────────────┴───────────────────┤R │
+│  │  TERMINAL (xterm.js — multi-tab PTY)                       │  │
+│  │  ~/project $ python3 main.py                               │  │
+│  │  Hello World!                                              │  │
+│  ├────────────────────────────────────────────────────────────┤  │
+│  │  STATUS BAR: Python │ Ln 42, Col 15                        │  │
+└──┴────────────────────────────────────────────────────────────┴──┘
 ```
 
 ---
@@ -90,15 +82,32 @@ Beginners often struggle to understand how code actually executes — variables 
 ## 🚀 Quick Start (Development)
 
 ```bash
-git clone <repo-url>
-cd backend
+git clone https://github.com/oryx-org/colon.git
+cd colon
 
-# Install frontend dependencies
-cd frontend && npm install
+# Install dependencies
+npm --prefix frontend install
+npm --prefix backend install
 
 # Start in development mode
-cd ../backend
-npm install
+cd backend
 npm run dev
 # Electron window opens with React loaded from Vite dev server
+```
+
+### Testing
+
+```bash
+cd backend
+npm test
+# Runs 36 tests: security, script validation, manim pipeline
+```
+
+### Building Installers
+
+```bash
+cd backend
+npm run package:win    # Windows .exe
+npm run package:linux  # Linux .AppImage + .deb
+npm run package:mac    # macOS .dmg
 ```

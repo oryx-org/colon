@@ -1,208 +1,213 @@
 # 📦 Phase 7 — Packaging & Distribution
 
-> **Timeline**: Week 7–9  
-> **Team**: DevOps member  
-> **Goal**: Build installers for Windows, macOS, Linux + auto-update system
+> **Timeline**: Week 7–9
+> **Team**: DevOps member
+> **Goal**: Build installers for Windows, macOS, Linux + CI/CD pipeline
 
 ---
 
-## 8.1 Objectives
+## 7.1 Objectives
 
-- [ ] Configure electron-builder for all platforms
-- [ ] Build .exe (Windows), .dmg (macOS), .AppImage/.deb (Linux) installers
-- [ ] Set up auto-update via GitHub Releases
-- [ ] Optimize app size (tree-shake, exclude unnecessary files)
-- [ ] Set up CI/CD with GitHub Actions for automated builds
+- [x] Configure electron-builder for all platforms
+- [x] Build .exe (Windows), .dmg (macOS), .AppImage/.deb (Linux) installers
+- [x] Optimize app size (exclude unnecessary files, use asar)
+- [x] Set up CI/CD with GitHub Actions for automated builds
+- [x] Deploy Cloudflare Worker proxy for API key protection
 
 ---
 
-## 8.2 Electron Builder Configuration
+## 7.2 Electron Builder Configuration
 
-```yaml
-# backend/electron-builder.yml
-appId: com.Colon.app
-productName: Colon
-copyright: Copyright © 2026 Colon Team
+The build configuration lives in `backend/package.json` under the `"build"` key:
 
-directories:
-  output: dist
-  buildResources: assets
-
-files:
-  - main.js
-  - preload.js
-  - services/**/*
-  - config/**/*
-  - "!node_modules/**/{test,tests,__tests__}/**"
-
-
-win:
-  target:
-    - nsis
-  icon: assets/icon.ico
-  artifactName: Colon-Setup-${version}.${ext}
-
-nsis:
-  oneClick: false
-  allowToChangeInstallationDirectory: true
-  installerIcon: assets/icon.ico
-  uninstallerIcon: assets/icon.ico
-
-mac:
-  target:
-    - dmg
-  icon: assets/icon.icns
-  category: public.app-category.developer-tools
-
-linux:
-  target:
-    - AppImage
-    - deb
-  icon: assets/icon.png
-  category: Development
-  maintainer: Colon@example.com
-
-publish:
-  provider: github
-  owner: your-github-username
-  repo: Colon
+```json
+{
+  "build": {
+    "appId": "com.colon.ide",
+    "productName": "Colon IDE",
+    "asar": true,
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "services/**/*",
+      "ipc/**/*",
+      "package.json",
+      "!npm_log.txt",
+      "!**/*.map"
+    ],
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Development",
+      "artifactName": "Colon-IDE-${version}-${arch}.${ext}",
+      "icon": "build/icon.png"
+    },
+    "mac": {
+      "target": ["dmg"],
+      "category": "public.app-category.developer-tools",
+      "artifactName": "Colon-IDE-${version}-${arch}.${ext}"
+    },
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "artifactName": "Colon-IDE-${version}-${arch}-Setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}
 ```
 
 ---
 
-## 8.3 Build Commands
+## 7.3 Build Commands
 
 ```bash
-# Build for current platform
+# Build frontend first, then package for current platform
 cd backend
-npx electron-builder --dir        # Quick test (no installer)
-npx electron-builder              # Full installer
+npm run package
 
 # Build for specific platforms
-npx electron-builder --win        # Windows .exe
-npx electron-builder --mac        # macOS .dmg
-npx electron-builder --linux      # Linux .AppImage + .deb
+npm run package:win     # Windows .exe
+npm run package:mac     # macOS .dmg
+npm run package:linux   # Linux .AppImage + .deb
+
+# Quick test build (no installer, just unpacked directory)
+npm run package:dir
 ```
 
 **Output:**
 ```
 backend/dist/
-├── Colon-Setup-1.0.0.exe       # Windows (~80MB)
-├── Colon-1.0.0.dmg             # macOS (~85MB)
-├── Colon-1.0.0.AppImage        # Linux portable (~75MB)
-└── Colon_1.0.0_amd64.deb       # Linux .deb (~70MB)
+├── Colon-IDE-1.0.0-x64-Setup.exe     # Windows (~80MB)
+├── Colon-IDE-1.0.0-arm64.dmg         # macOS (~85MB)
+├── Colon-IDE-1.0.0-x86_64.AppImage   # Linux portable (~75MB)
+└── Colon-IDE-1.0.0-amd64.deb         # Linux .deb (~70MB)
 ```
 
 ---
 
-## 8.4 Auto-Update System
+## 7.4 CI/CD Pipeline
 
-```javascript
-// backend/main.js — add auto-updater
-const { autoUpdater } = require('electron-updater');
-
-app.whenReady().then(() => {
-  createWindow();
-
-  // Check for updates (from GitHub Releases)
-  if (process.env.NODE_ENV === 'production') {
-    autoUpdater.checkForUpdatesAndNotify();
-  }
-});
-
-autoUpdater.on('update-available', (info) => {
-  mainWindow.webContents.send('update:available', info.version);
-});
-
-autoUpdater.on('update-downloaded', () => {
-  mainWindow.webContents.send('update:ready');
-  // User clicks "Restart" → install update
-});
-```
-
-Release workflow:
-```
-1. Bump version in package.json
-2. Push tag: git tag v1.1.0 && git push --tags
-3. GitHub Actions builds all platform installers
-4. Uploads to GitHub Releases
-5. Users' apps auto-detect update → download → restart
-```
-
----
-
-## 8.5 CI/CD Pipeline
+### CI — Lint & Test (on every push to main)
 
 ```yaml
-# .github/workflows/build.yml
-name: Build & Release
-
+# .github/workflows/ci.yml
+name: CI — Lint & Test
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
-  build:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-
-    runs-on: ${{ matrix.os }}
-
+  test:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
+      - run: npm --prefix backend ci
+      - run: npm --prefix backend test
+      - run: node --check backend/main.js
+      - run: npm --prefix frontend ci
+      - run: npm --prefix frontend run build
+```
 
-      - name: Install frontend deps
-        run: cd frontend && npm ci
+### Release — Build Installers (on tag push)
 
-      - name: Build frontend
-        run: cd frontend && npm run build
+```yaml
+# .github/workflows/release.yml
+name: Build Release Installers
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
 
-      - name: Install backend deps
-        run: cd backend && npm ci
+jobs:
+  release:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            build_cmd: npm --prefix backend run package:linux
+          - os: windows-latest
+            build_cmd: npm --prefix backend run package:win
+          - os: macos-latest
+            build_cmd: npm --prefix backend run package:mac
 
-      - name: Build Electron app
-        run: cd backend && npx electron-builder
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm --prefix frontend ci
+      - run: npm --prefix backend ci
+      - run: ${{ matrix.build_cmd }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: release-${{ matrix.os }}
-          path: backend/dist/Colon*
+          name: Colon-IDE-${{ matrix.os }}
+          path: |
+            backend/dist/*.AppImage
+            backend/dist/*.deb
+            backend/dist/*.dmg
+            backend/dist/*Setup*.exe
+```
+
+### Release Workflow
+
+```
+1. Make changes and commit
+2. Tag the release: git tag v1.2.0
+3. Push with tags: git push origin main --tags
+4. GitHub Actions builds all platform installers
+5. Download installers from Actions artifacts
 ```
 
 ---
 
-## 8.6 App Size Optimization
+## 7.5 Cloudflare Worker Proxy Deployment
+
+The Gemini API key is protected via a Cloudflare Worker proxy:
+
+```bash
+cd colon-proxy
+npx wrangler secret put GEMINI_API_KEY    # Enter API key when prompted
+npx wrangler deploy                        # Deploy the worker
+```
+
+The worker is deployed at: `https://colon-llm-proxy.oryx-org.workers.dev`
+
+---
+
+## 7.6 App Size Optimization
 
 | Optimization | Impact |
 |---|---|
-| Exclude `node_modules` test files | -10MB |
-| Tree-shake unused dependencies | -5MB |
-| Compress assets (icons) | -5MB |
+| Exclude `node_modules` test files via `files` config | -10MB |
 | Use `asar` archive (default in electron-builder) | Faster load time |
-| Don't bundle compilers — download via Language Manager | -400MB saved! |
-
-**Target app download: ~70-80MB** (without compilers)
+| Don't bundle runtimes — detect from PATH, install on demand | No binary bloat |
+| `npmRebuild: false` (rebuild native modules manually if needed) | Faster build |
 
 ---
 
-## 8.7 Deliverables
+## 7.7 Deliverables
 
 | # | Deliverable | Status |
 |---|---|---|
-| 1 | electron-builder config for all 3 platforms | ⬜ |
-| 2 | Windows .exe installer working | ⬜ |
-| 3 | macOS .dmg installer working | ⬜ |
-| 4 | Linux .AppImage + .deb working | ⬜ |
-| 5 | Auto-updater via GitHub Releases | ⬜ |
-| 6 | GitHub Actions CI/CD pipeline | ⬜ |
-| 7 | App size under 80MB | ⬜ |
-| 8 | App icon designed and set | ⬜ |
+| 1 | electron-builder config for all 3 platforms | ✅ Done |
+| 2 | Windows .exe installer working | ✅ Done |
+| 3 | macOS .dmg installer working | ✅ Done |
+| 4 | Linux .AppImage + .deb working | ✅ Done |
+| 5 | GitHub Actions CI pipeline | ✅ Done |
+| 6 | GitHub Actions release pipeline | ✅ Done |
+| 7 | Cloudflare Worker proxy deployed | ✅ Done |
+| 8 | App icon designed and set | ✅ Done |

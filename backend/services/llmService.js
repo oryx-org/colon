@@ -8,7 +8,6 @@
  */
 
 const https = require('https');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const DEFAULT_MODELS = {
     openai: 'gpt-4o',

@@ -12,6 +12,9 @@ import SearchPanel from './components/SearchPanel/SearchPanel';
 import LanguageManagerPanel from './components/LanguageManagerPanel/LanguageManagerPanel';
 import CommandPalette from './components/CommandPalette/CommandPalette';
 import SettingsModal, { loadSettings } from './components/SettingsModal/SettingsModal';
+import { useFileManagement } from './hooks/useFileManagement';
+import { useAnimationState } from './hooks/useAnimationState';
+import { useCodeRunner } from './hooks/useCodeRunner';
 import './styles/global.css';
 
 export interface OpenFile {
@@ -41,41 +44,12 @@ function App() {
   const [rightTab, setRightTab] = useState('none');
   const [showTerminal, setShowTerminal] = useState(true);
   const [isTerminalMaximized, setIsTerminalMaximized] = useState(false);
-  const [openFiles, setOpenFiles] = useState<OpenFile[]>([]);
-  const [activeFilePath, setActiveFilePath] = useState<string | null>(null);
   const terminalRef = useRef<TerminalPanelRef>(null);
-  const [_environments, setEnvironments] = useState<Record<string, RuntimeInfo>>({});
-  const [isRunning, setIsRunning] = useState(false);
 
   // Split sizes - persist across tab changes for VSCode-like behavior
   const [leftPanelSize, setLeftPanelSize] = useState(20);
   const [terminalHeight, setTerminalHeight] = useState(38);
-  // Mirror isRunning in a ref so keydown handler closure always reads fresh value
-  const isRunningRef = useRef(false);
-  const setIsRunningSync = (val: boolean) => {
-    isRunningRef.current = val;
-    setIsRunning(val);
-  };
 
-  const activeFileRef = useRef<OpenFile | null>(null);
-  activeFileRef.current = openFiles.find(f => f.path === activeFilePath) || null;
-
-  // LLM Animation system state — keyed by file path to prevent cross-file collision
-  const [animsByFile, setAnimsByFile] = useState<Record<string, AnimationRecord[]>>({});
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [llmConfigured, setLlmConfigured] = useState(false);
-  const [animError, setAnimError] = useState<string | null>(null);
-
-  // Manim video state — keyed by file path
-  const [manimVideosByFile, setManimVideosByFile] = useState<Record<string, any[]>>({});
-  const [isManimRendering, setIsManimRendering] = useState(false);
-  const [manimError, setManimError] = useState<string | null>(null);
-  const [animEngineInstalled, setAnimEngineInstalled] = useState(false);
-
-  // Derive current file's data
-  const animations = activeFilePath ? (animsByFile[activeFilePath] || []) : [];
-  const manimVideos = activeFilePath ? (manimVideosByFile[activeFilePath] || []) : [];
-  const activeFileLineCount = activeFilePath ? (openFiles.find(f => f.path === activeFilePath)?.content?.split('\n').length || 0) : 0;
   const [cursorPos, setCursorPos] = useState({ line: 1, column: 1 });
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [animWidth, setAnimWidth] = useState(500);
@@ -87,249 +61,58 @@ function App() {
     document.documentElement.setAttribute('data-theme', theme);
   }, [settings?.theme]);
 
-  const refreshEnvironments = useCallback(async () => {
-    const api = (window as any).electronAPI;
-    if (!api?.scanEnvironments) return null;
-    const envs = await api.scanEnvironments();
-    setEnvironments(envs);
-    return envs;
-  }, []);
+  // ── Custom Hooks ──
 
+  const {
+    openFiles,
+    setOpenFiles,
+    activeFilePath,
+    setActiveFilePath,
+    activeFileRef,
+    handleOpenFile: rawHandleOpenFile,
+    handleFileChange,
+    saveActiveFile,
+    saveAllFiles,
+    handleFileRenamed,
+    handleCloseFile,
+    handleCloseFileRef,
+  } = useFileManagement(settings);
 
-  const installMissingRuntime = useCallback(async (runtime: RuntimeInfo | undefined, reason: string) => {
-    const runtimeName = runtime?.name || 'Required runtime';
+  const activeFileLineCount = activeFilePath ? (openFiles.find(f => f.path === activeFilePath)?.content?.split('\n').length || 0) : 0;
 
-    setShowTerminal(true);
+  const {
+    isRunning,
+    isRunningRef,
+    runActiveFile,
+    stopRunningCode,
+  } = useCodeRunner(activeFileRef, terminalRef, saveActiveFile, setShowTerminal);
 
-    if (!runtime?.id) {
-      terminalRef.current?.sendCommandToTerminal(
-        `echo "⚠️ ${reason}" && echo "No automatic install command is available for this OS/runtime."`
-      );
-      return;
-    }
+  const {
+    animations,
+    manimVideos,
+    isGenerating,
+    llmConfigured,
+    animError,
+    isManimRendering,
+    manimError,
+    animEngineInstalled,
+    handleGenerateAnimation,
+    handleCancelAnimation,
+    handleDeleteAnimation,
+    handleClearAnimations,
+    handleGenerateManimVideo,
+    handleCancelManimVideo,
+    handleDeleteManimVideo,
+  } = useAnimationState(activeFilePath, openFiles, activeFileRef, saveActiveFile, setRightTab, rightTab);
 
-    const api = (window as any).electronAPI;
-    if (!api?.getInstallCommand) {
-      terminalRef.current?.sendCommandToTerminal(
-        `echo "⚠️ Installer API not available."`
-      );
-      return;
-    }
+  // Wrap handleOpenFile to dismiss overlays
+  const handleOpenFile = async (filePath: string, name: string) => {
+    setShowCommandPalette(false);
+    setShowSettings(false);
+    await rawHandleOpenFile(filePath, name);
+  };
 
-    const result = await api.getInstallCommand(runtime.id);
-    if (!result?.success) {
-      terminalRef.current?.sendCommandToTerminal(
-        `echo "⚠️ ${result?.reason || `No install command available for ${runtimeName}`}"`
-      );
-      return;
-    }
-
-    const shouldInstall = window.confirm(
-      `${reason}\n\nColon will run the install command in terminal:\n${result.command}\n\n` +
-      'Continue? You can interact with the terminal during installation.'
-    );
-
-    if (!shouldInstall) {
-      terminalRef.current?.sendCommandToTerminal(
-        `echo "ℹ️ Installation cancelled. Run manually: ${result.command}"`
-      );
-      return;
-    }
-
-    // Send the command to the terminal
-    terminalRef.current?.sendCommandToTerminal(result.command);
-  }, []);
-
-  // Scan environments on startup
-  useEffect(() => {
-    const api = (window as any).electronAPI;
-    if (api) {
-      refreshEnvironments().then((envs) => {
-        if (envs) console.log('[App] Environments scanned:', envs);
-        return undefined;
-      }).catch((err: any) => console.error('[App] Failed to scan environments:', err));
-      // Check LLM status
-      if (api.animation?.getLlmStatus) {
-        api.animation.getLlmStatus().then((status: any) => {
-          setLlmConfigured(status?.configured || false);
-          console.log('[App] LLM status:', status);
-          return undefined;
-        }).catch((err: any) => console.error('[App] Failed to get LLM status:', err));
-      }
-      // Check animation engine status
-      if (api.animEngine?.check) {
-          api.animEngine.check().then((status: any) => {
-              setAnimEngineInstalled(status?.installed || false);
-              return undefined;
-          }).catch((err: any) => console.error('[App] Failed to check anim engine:', err));
-      }
-    }
-  }, [refreshEnvironments]);
-
-  // Refresh animation engine status when opening the animation tab
-  useEffect(() => {
-    if (rightTab === 'video') {
-      const api = (window as any).electronAPI;
-      if (api?.animEngine?.check) {
-        api.animEngine.check().then((status: any) => {
-            setAnimEngineInstalled(status?.installed || false);
-            return undefined;
-        }).catch((err: any) => console.error('[App] Failed to check anim engine:', err));
-      }
-    }
-  }, [rightTab]);
-
-
-
-  // Load saved animations when active file changes
-  useEffect(() => {
-    if (!activeFilePath) return;
-    // If we already loaded animations for this file, skip the IPC call
-    if (animsByFile[activeFilePath]) return;
-
-    const api = (window as any).electronAPI;
-    if (!api?.animation?.loadAnimations) return;
-
-    api.animation.loadAnimations(activeFilePath).then((result: any) => {
-      if (result.success) {
-        setAnimsByFile(prev => ({ ...prev, [activeFilePath]: result.animations || [] }));
-      } else {
-        setAnimsByFile(prev => ({ ...prev, [activeFilePath]: [] }));
-      }
-      return undefined;
-    }).catch(() => {
-      setAnimsByFile(prev => ({ ...prev, [activeFilePath]: [] }));
-    });
-  }, [activeFilePath]);
-
-  // Generate animation for a code block (called when user clicks gutter play icon)
-  const handleGenerateAnimation = useCallback(async (filePath: string, code: string, language: string, blockInfo: any) => {
-    const api = (window as any).electronAPI;
-    if (!api?.animation?.generateAnimation || isGenerating) return;
-
-    // Save file first if dirty
-    const file = openFiles.find(f => f.path === filePath);
-    if (file?.isDirty) await saveActiveFile();
-
-    setIsGenerating(true);
-    setAnimError(null);
-    setRightTab('video'); // Show animation panel
-    try {
-      const result = await api.animation.generateAnimation(filePath, code, language, blockInfo);
-      if (result.success && result.record) {
-        setAnimsByFile(prev => ({
-          ...prev,
-          [filePath]: [...(prev[filePath] || []), result.record]
-        }));
-      } else {
-        setAnimError(result.error || 'Animation generation failed');
-        console.error('[App] Animation generation failed:', result.error);
-      }
-    } catch (err: any) {
-      setAnimError(err.message || 'Unknown error');
-      console.error('[App] Animation error:', err);
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [isGenerating, openFiles]);
-
-  const handleCancelAnimation = useCallback(async () => {
-    const api = (window as any).electronAPI;
-    if (api?.animation?.cancel) {
-      await api.animation.cancel();
-      setIsGenerating(false);
-      setAnimError("Animation generation stopped by user.");
-    }
-  }, []);
-
-  // Delete a single animation
-  const handleDeleteAnimation = useCallback(async (animId: string) => {
-    const api = (window as any).electronAPI;
-    const file = activeFileRef.current;
-    if (!api?.animation?.deleteAnimation || !file) return;
-
-    await api.animation.deleteAnimation(file.path, animId);
-    setAnimsByFile(prev => ({
-      ...prev,
-      [file.path]: (prev[file.path] || []).filter(a => a.id !== animId)
-    }));
-  }, []);
-
-  // Clear all animations for the active file
-  const handleClearAnimations = useCallback(async () => {
-    const api = (window as any).electronAPI;
-    const file = activeFileRef.current;
-    if (!api?.animation?.clearAnimations || !file) return;
-
-    await api.animation.clearAnimations(file.path);
-    setAnimsByFile(prev => ({ ...prev, [file.path]: [] }));
-  }, []);
-
-  // Load Manim videos when active file changes
-  useEffect(() => {
-    if (!activeFilePath) return;
-    if (manimVideosByFile[activeFilePath]) return;
-
-    const api = (window as any).electronAPI;
-    if (!api?.manim?.loadVideos) return;
-
-    api.manim.loadVideos(activeFilePath).then((result: any) => {
-      if (result.success) {
-        setManimVideosByFile(prev => ({ ...prev, [activeFilePath]: result.videos || [] }));
-      }
-      return undefined;
-    }).catch(() => {});
-  }, [activeFilePath]);
-
-  // Generate Manim video for the active file
-  const handleGenerateManimVideo = useCallback(async () => {
-    const api = (window as any).electronAPI;
-    const file = activeFileRef.current;
-    if (!api?.manim?.generate || !file || isManimRendering) return;
-
-    if (file.isDirty) await saveActiveFile();
-
-    setIsManimRendering(true);
-    setManimError(null);
-    setRightTab('video');
-    try {
-      const result = await api.manim.generate(file.path, file.content, file.language);
-      if (result.success && result.record) {
-        setManimVideosByFile(prev => ({
-          ...prev,
-          [file.path]: [...(prev[file.path] || []), result.record]
-        }));
-      } else {
-        setManimError(result.error || 'Video generation failed');
-      }
-    } catch (err: any) {
-      setManimError(err.message || 'Unknown error');
-    } finally {
-      setIsManimRendering(false);
-    }
-  }, [isManimRendering]);
-
-  const handleCancelManimVideo = useCallback(async () => {
-    const api = (window as any).electronAPI;
-    if (api?.manim?.cancel) {
-      await api.manim.cancel();
-      setIsManimRendering(false);
-      setManimError("Video generation stopped by user.");
-    }
-  }, []);
-
-  // Delete a Manim video
-  const handleDeleteManimVideo = useCallback(async (videoId: string) => {
-    const api = (window as any).electronAPI;
-    const file = activeFileRef.current;
-    if (!api?.manim?.deleteVideo || !file) return;
-
-    await api.manim.deleteVideo(file.path, videoId);
-    setManimVideosByFile(prev => ({
-      ...prev,
-      [file.path]: (prev[file.path] || []).filter((v: any) => v.id !== videoId)
-    }));
-  }, []);
+  // ── Terminal Actions ──
 
   const handleTerminalAction = (action: string) => {
     switch (action) {
@@ -354,6 +137,8 @@ function App() {
         break;
     }
   };
+
+  // ── Menu Actions ──
 
   const handleMenuAction = (action: string) => {
     switch(action) {
@@ -431,12 +216,6 @@ function App() {
       case 'toggleSidebar':
         setLeftTab(prev => (prev === 'none' ? 'folder' : 'none'));
         break;
-      case 'startDebugging':
-        setLeftTab('debug');
-        break;
-      case 'addBreakpoint':
-        setLeftTab('debug');
-        break;
       case 'showAbout':
       case 'showWelcome':
       case 'showDocs':
@@ -445,170 +224,7 @@ function App() {
     }
   };
 
-  const handleOpenFile = async (filePath: string, name: string) => {
-    // Ensure transient overlays never block editor interaction after selecting a file.
-    setShowCommandPalette(false);
-    setShowSettings(false);
-
-    const existing = openFiles.find(f => f.path === filePath);
-    if (existing) {
-      setActiveFilePath(filePath);
-      return;
-    }
-
-    // Block binary / non-text file types from being opened in Monaco
-    const ext = name.split('.').pop()?.toLowerCase() || '';
-    const BINARY_EXTENSIONS = new Set([
-      'png','jpg','jpeg','gif','webp','bmp','ico','tiff','svg',
-      'pdf','doc','docx','xls','xlsx','ppt','pptx',
-      'zip','tar','gz','7z','rar',
-      'exe','dll','so','bin','dmg','app',
-      'mp3','mp4','wav','avi','mov','mkv','webm',
-      'ttf','woff','woff2','eot',
-      'class','pyc','pyo',
-    ]);
-    if (BINARY_EXTENSIONS.has(ext)) {
-      console.warn(`[App] Skipping binary file: ${name}`);
-      // Still select it in the tree but don't open in Monaco
-      return;
-    }
-
-    const electron = (window as any).electronAPI;
-    if (electron) {
-      try {
-        const content = await electron.readFile(filePath);
-        console.log(`[App] Read file ${filePath}, content length: ${content?.length}`);
-        const languageMap: Record<string, string> = {
-          'js': 'javascript', 'jsx': 'javascript', 'mjs': 'javascript',
-          'ts': 'typescript', 'tsx': 'typescript',
-          'py': 'python', 'pyw': 'python',
-          'java': 'java',
-          'c': 'c', 'h': 'c',
-          'cpp': 'cpp', 'cc': 'cpp', 'cxx': 'cpp', 'hpp': 'cpp',
-          'cs': 'csharp',
-          'go': 'go',
-          'rs': 'rust',
-          'rb': 'ruby',
-          'php': 'php',
-          'html': 'html', 'htm': 'html',
-          'css': 'css', 'scss': 'scss', 'less': 'less',
-          'json': 'json',
-          'xml': 'xml',
-          'md': 'markdown', 'mdx': 'markdown',
-          'yaml': 'yaml', 'yml': 'yaml',
-          'sql': 'sql',
-          'sh': 'shell', 'bash': 'shell', 'zsh': 'shell',
-          'ps1': 'powershell',
-          'dockerfile': 'dockerfile',
-          'r': 'r',
-          'swift': 'swift',
-          'kt': 'kotlin', 'kts': 'kotlin',
-          'lua': 'lua',
-          'pl': 'perl',
-          'toml': 'ini',
-          'ini': 'ini',
-          'bat': 'bat', 'cmd': 'bat',
-          'graphql': 'graphql', 'gql': 'graphql',
-        };
-        const language = languageMap[ext] || 'plaintext';
-
-        const newFile: OpenFile = { name, path: filePath, language, content, isDirty: false };
-        setOpenFiles(prev => [...prev, newFile]);
-        setActiveFilePath(filePath);
-      } catch (err) {
-        console.error("Failed to read file", err);
-      }
-    } else {
-      console.warn("electronAPI not available, using mock");
-      setOpenFiles(prev => [...prev, { name, path: filePath, language: 'javascript', content: '// mock content', isDirty: false }]);
-      setActiveFilePath(filePath);
-    }
-  };
-
-  const handleFileChange = (filePath: string, newContent: string) => {
-    setOpenFiles(prev => prev.map(f =>
-      f.path === filePath ? { ...f, content: newContent, isDirty: true } : f
-    ));
-  };
-
-  const openFilesRef = useRef(openFiles);
-  openFilesRef.current = openFiles;
-
-  const saveActiveFile = async () => {
-    const fileToSave = activeFileRef.current;
-    if (!fileToSave || !fileToSave.isDirty) return;
-
-    if (settings?.formatOnSave) {
-      window.dispatchEvent(new CustomEvent('editor-action', { detail: 'formatDocument' }));
-      // Give the editor 50ms to apply formatting changes before dumping to disk
-      await new Promise<void>(r => setTimeout(r, 50));
-    }
-
-    const electron = (window as any).electronAPI;
-    if (electron) {
-      // Use ref to get the latest content (avoids stale closure)
-      const latestFile = openFilesRef.current.find(f => f.path === fileToSave.path);
-      const contentToSave = latestFile?.content || fileToSave.content;
-      const success = await electron.writeFile(fileToSave.path, contentToSave);
-      if (success) {
-        setOpenFiles(prev => prev.map(f =>
-          f.path === fileToSave.path ? { ...f, isDirty: false } : f
-        ));
-      }
-    }
-  };
-
-  const saveAllFiles = async () => {
-    const electron = (window as any).electronAPI;
-    if (!electron) return;
-
-    const dirtyFiles = openFiles.filter(f => f.isDirty);
-    for (const file of dirtyFiles) {
-      const success = await electron.writeFile(file.path, file.content);
-      if (success) {
-        setOpenFiles(prev => prev.map(f =>
-          (f.path === file.path ? { ...f, isDirty: false } : f)
-        ));
-      }
-    }
-  };
-
-  /** When a file is renamed in the explorer, update open tabs to match */
-  const handleFileRenamed = (oldPath: string, newPath: string) => {
-    const sepIdx = Math.max(newPath.lastIndexOf('/'), newPath.lastIndexOf('\\'));
-    const newName = newPath.substring(sepIdx + 1);
-    const ext = newName.substring(newName.lastIndexOf('.') + 1).toLowerCase();
-    const languageMap: Record<string, string> = {
-      'js': 'javascript', 'jsx': 'javascript', 'ts': 'typescript', 'tsx': 'typescript',
-      'py': 'python', 'java': 'java', 'c': 'c', 'cpp': 'cpp', 'h': 'c', 'hpp': 'cpp',
-      'html': 'html', 'css': 'css', 'json': 'json', 'md': 'markdown',
-      'go': 'go', 'rs': 'rust', 'rb': 'ruby', 'php': 'php',
-      'sh': 'shell', 'bash': 'shell', 'yml': 'yaml', 'yaml': 'yaml',
-      'xml': 'xml', 'sql': 'sql', 'kt': 'kotlin', 'swift': 'swift',
-    };
-    const newLang = languageMap[ext] || 'plaintext';
-
-    setOpenFiles(prev => prev.map(f => {
-      // Direct match
-      if (f.path === oldPath) {
-        return { ...f, path: newPath, name: newName, language: newLang };
-      }
-      // If a folder was renamed, update all children
-      // Check both / and \ separators for cross-platform support
-      if (f.path.startsWith(`${oldPath}/`) || f.path.startsWith(`${oldPath}\\`)) {
-        const updatedPath = `${newPath}${f.path.substring(oldPath.length)}`;
-        return { ...f, path: updatedPath };
-      }
-      return f;
-    }));
-
-    // Update active file path if needed
-    if (activeFilePath === oldPath) {
-      setActiveFilePath(newPath);
-    } else if (activeFilePath?.startsWith(`${oldPath}/`) || activeFilePath?.startsWith(`${oldPath}\\`)) {
-      setActiveFilePath(`${newPath}${activeFilePath.substring(oldPath.length)}`);
-    }
-  };
+  // ── Keyboard Shortcuts ──
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -648,71 +264,7 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  /**
-   * Run active file — the VS Code way:
-   * 1. Save file if dirty
-   * 2. Ask backend for the shell command (e.g., "python3 /path/to/file.py")
-   * 3. Type that command into the active terminal PTY
-   * This means stdin, stdout, colors, and user input all work natively!
-   */
-  const runActiveFile = async () => {
-    const file = activeFileRef.current;
-    if (!file || isRunningRef.current) return;
-
-    try {
-      // Save first
-      if (file.isDirty) await saveActiveFile();
-
-      const api = (window as any).electronAPI;
-      if (!api) return;
-
-      // Get the run command from backend
-      const result = await api.getRunCommand(file.path);
-
-      if (!result.success) {
-        await installMissingRuntime(result.runtime, result.reason);
-        return;
-      }
-
-      // Show terminal and reveal it
-      setShowTerminal(true);
-      setIsRunningSync(true);
-      // Terminal is always mounted, so send the command immediately
-      terminalRef.current?.sendCommandToTerminal(result.command);
-      // Auto-reset the Run button after 1.5s — we can't reliably detect PTY process exit,
-      // but this lets the user re-run quickly. Ctrl+C still stops long-running programs.
-      setTimeout(() => setIsRunningSync(false), 1500);
-    } catch (err) {
-      console.error('[App] runActiveFile error:', err);
-      setIsRunningSync(false);
-    }
-  };
-
-  const stopRunningCode = () => {
-    // Send raw Ctrl+C to the active terminal to interrupt the running process
-    // Must NOT append '\n' — it's a control character, not a command
-    terminalRef.current?.sendRawToTerminal('\x03');
-    setIsRunningSync(false);
-  };
-
-  const handleCloseFile = (filePath: string) => {
-    const file = openFiles.find(f => f.path === filePath);
-    if (file?.isDirty) {
-      const ok = window.confirm(`"${file.name}" has unsaved changes. Close anyway?`);
-      if (!ok) return;
-    }
-    setOpenFiles(prev => {
-      const next = prev.filter(f => f.path !== filePath);
-      if (activeFilePath === filePath) {
-        setActiveFilePath(next.length > 0 ? next[next.length - 1].path : null);
-      }
-      return next;
-    });
-  };
-
-  // Stable ref so the keydown handler (empty-dep effect) can always call the latest version
-  const handleCloseFileRef = useRef(handleCloseFile);
-  handleCloseFileRef.current = handleCloseFile;
+  // ── Layout Helpers ──
 
   const toggleTerminal = () => setShowTerminal(v => !v);
   const toggleMaximize = () => setIsTerminalMaximized(v => !v);
@@ -736,6 +288,8 @@ function App() {
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
   };
+
+  // ── Render Sections ──
 
   const workspaceTopContent = (
     <div style={{ display: 'flex', width: '100%', height: '100%', overflow: 'hidden' }}>
